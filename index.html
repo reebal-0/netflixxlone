@@ -1,0 +1,285 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Netflix</title>
+    <!-- Netflix Favicon -->
+    <link rel="icon" type="image/png" href="https://a.favicon.im/netflix.com">
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        netflixRed: '#E50914',
+                        netflixDark: '#141414',
+                        netflixGray: '#808080',
+                    }
+                }
+            }
+        }
+    </script>
+    <!-- FontAwesome for cinematic icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Google Fonts Inter -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <!-- Custom CSS File -->
+    <link rel="stylesheet" href="style.css">
+</head>
+<body class="bg-netflixDark text-white antialiased selection:bg-netflixRed selection:text-white">
+
+    <!-- Navigation Bar -->
+    <nav id="navbar" class="fixed top-0 left-0 right-0 z-50 transition-all duration-300 bg-gradient-to-b from-black/90 via-black/50 to-transparent px-4 md:px-12 py-4 flex items-center justify-between">
+        <div class="flex items-center space-x-6 md:space-x-8">
+            <a href="#" onclick="resetHomeView(event)" class="text-netflixRed text-2xl md:text-3xl font-extrabold tracking-wider uppercase cursor-pointer">NETFLIX</a>
+            <div class="hidden md:flex items-center space-x-6 text-sm font-medium text-gray-300">
+                <a href="#" onclick="resetHomeView(event)" class="hover:text-white transition text-white">Home</a>
+                <a href="#series-row" class="hover:text-white transition">TV Shows</a>
+                <a href="#movies-row" class="hover:text-white transition">Movies</a>
+                <a href="#trending-row" class="hover:text-white transition">New & Popular</a>
+            </div>
+        </div>
+        <div class="flex items-center space-x-3 md:space-x-5">
+            <!-- API Key Settings Button -->
+            <button id="api-key-modal-btn" title="Configure TMDb/IMDb API Key" class="text-gray-300 hover:text-white bg-black/40 hover:bg-black/70 border border-gray-700 px-3 py-1.5 rounded text-xs md:text-sm flex items-center space-x-1.5 transition">
+                <i class="fa-solid fa-key text-yellow-400"></i>
+                <span id="api-key-status-text" class="hidden sm:inline">API Config</span>
+            </button>
+            <!-- Search Bar -->
+            <div class="relative flex items-center">
+                <button id="search-icon-btn" class="text-white hover:text-netflixRed transition p-2 focus:outline-none">
+                    <i class="fa-solid fa-search text-lg"></i>
+                </button>
+                <input type="text" id="search-input" placeholder="Search movies, TV shows, genres..." 
+                    class="w-44 sm:w-64 bg-black/80 border border-gray-600 text-sm text-white rounded px-3 py-1.5 transition-all duration-300 focus:w-72 sm:focus:w-80 focus:border-netflixRed focus:outline-none">
+            </div>
+            <div class="hidden sm:flex items-center space-x-3 cursor-pointer group">
+                <img src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=150" alt="Profile" class="w-8 h-8 rounded object-cover border border-gray-600">
+                <i class="fa-solid fa-caret-down text-xs text-gray-400 group-hover:text-white transition"></i>
+            </div>
+        </div>
+    </nav>
+
+    <!-- API Key Modal -->
+    <div id="api-key-modal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-md opacity-0 pointer-events-none transition-opacity duration-300 p-4">
+        <div class="bg-[#181818] w-full max-w-md rounded-xl p-6 border border-gray-800 shadow-2xl space-y-4">
+            <div class="flex items-center justify-between">
+                <h3 class="text-lg font-bold text-white flex items-center"><i class="fa-solid fa-key text-yellow-400 mr-2"></i> TMDb API Configuration</h3>
+                <button id="api-modal-close" class="text-gray-400 hover:text-white"><i class="fa-solid fa-xmark text-lg"></i></button>
+            </div>
+            <p class="text-xs text-gray-300 leading-relaxed">
+                The app comes pre-configured with instant fallback content and live API integration. You can optionally enter your own TMDb API v3 key below.
+            </p>
+            <div class="space-y-2">
+                <label class="block text-xs font-semibold text-gray-400 uppercase tracking-wider">TMDb API Key</label>
+                <input type="text" id="tmdb-api-input" placeholder="Enter custom API key" class="w-full bg-black/60 border border-gray-700 rounded px-3 py-2 text-sm text-white focus:border-netflixRed focus:outline-none">
+            </div>
+            <div class="flex items-center justify-end space-x-3 pt-2">
+                <button id="api-clear-btn" class="px-4 py-2 bg-gray-800 hover:bg-gray-700 text-gray-300 rounded text-xs font-semibold transition">Reset Default</button>
+                <button id="api-save-btn" class="px-4 py-2 bg-netflixRed hover:bg-red-700 text-white rounded text-xs font-semibold transition">Save Key</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Hero Banner -->
+    <header id="hero-banner" class="relative w-full h-[85vh] md:h-[90vh] flex items-end pb-20 px-4 md:px-12 bg-cover bg-center">
+        <div class="absolute inset-0 hero-gradient"></div>
+        <div id="hero-content" class="relative z-10 max-w-2xl space-y-4">
+            <div class="flex items-center space-x-3">
+                <span class="bg-netflixRed text-white text-xs font-bold px-2.5 py-1 rounded tracking-widest uppercase">NETFLIX ORIGINAL</span>
+                <span class="flex items-center text-yellow-400 font-bold text-sm bg-black/50 px-2 py-0.5 rounded border border-yellow-500/30">
+                    <i class="fa-solid fa-star mr-1"></i> IMDb <span id="hero-rating">9.3</span>
+                </span>
+                <span id="hero-year" class="text-gray-300 text-sm font-semibold">2024</span>
+            </div>
+            <h1 id="hero-title" class="text-4xl md:text-6xl font-black tracking-tight text-white drop-shadow-md">Arcane</h1>
+            <p id="hero-desc" class="text-gray-300 text-sm md:text-base line-clamp-3 leading-relaxed drop-shadow">
+                Set in the utopian region of Piltover and the oppressed underground of Zaun, the story follows the origins of two iconic League champions-and the power that will tear them apart.
+            </p>
+            <div class="flex items-center space-x-4 pt-2">
+                <button id="hero-play-btn" class="bg-white text-black hover:bg-white/80 transition font-bold px-6 py-3 rounded flex items-center space-x-2 text-sm md:text-base shadow-lg cursor-pointer">
+                    <i class="fa-solid fa-play"></i>
+                    <span>Play</span>
+                </button>
+                <button id="hero-info-btn" class="bg-gray-600/70 hover:bg-gray-600/50 backdrop-blur text-white font-semibold px-6 py-3 rounded flex items-center space-x-2 text-sm md:text-base transition border border-gray-500/40 cursor-pointer">
+                    <i class="fa-solid fa-circle-info"></i>
+                    <span>More Info</span>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content Container with space-y-20 distance separating hero buttons and recently browsed -->
+    <main class="relative z-20 pb-24 -mt-20 md:-mt-32 space-y-20">
+        
+        <!-- Search Results Section -->
+        <section id="search-results-section" class="px-4 md:px-12 pt-56 hidden">
+            <div class="flex items-center justify-between mb-6">
+                <h2 id="search-results-title" class="text-2xl md:text-3xl font-bold text-white">Search Results</h2>
+                <button onclick="clearSearch()" class="text-xs text-gray-400 hover:text-white bg-gray-800 px-3 py-1.5 rounded transition">Clear Search</button>
+            </div>
+            <div id="search-results-grid" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4 md:gap-6">
+                <!-- Populated by JS -->
+            </div>
+        </section>
+
+        <!-- Categories Rows Container -->
+        <div id="categories-container" class="space-y-10">
+            <!-- Dynamically populated rows -->
+        </div>
+    </main>
+
+    <!-- Detailed Info Modal -->
+    <div id="details-modal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-md opacity-0 pointer-events-none transition-opacity duration-300 p-4">
+        <div id="modal-content-box" class="bg-[#181818] w-full max-w-4xl rounded-xl overflow-hidden shadow-2xl border border-gray-800 transform scale-95 transition-transform duration-300 max-h-[90vh] flex flex-col">
+            <!-- Modal Header Banner -->
+            <div class="relative h-64 md:h-96 w-full bg-cover bg-center" id="modal-banner">
+                <div class="absolute inset-0 bg-gradient-to-t from-[#181818] via-[#181818]/40 to-transparent"></div>
+                <button id="modal-close-btn" class="absolute top-4 right-4 bg-black/60 hover:bg-black text-white w-10 h-10 rounded-full flex items-center justify-center transition border border-gray-700 z-20 cursor-pointer">
+                    <i class="fa-solid fa-xmark text-lg"></i>
+                </button>
+                <div class="absolute bottom-6 left-6 right-6 space-y-2">
+                    <h2 id="modal-title" class="text-3xl md:text-5xl font-black text-white drop-shadow-md">Title</h2>
+                    <div class="flex flex-wrap items-center gap-3 text-sm font-semibold">
+                        <span id="modal-rating" class="text-yellow-400 flex items-center bg-black/60 px-2.5 py-1 rounded border border-yellow-500/30">
+                            <i class="fa-solid fa-star mr-1"></i> IMDb 9.0
+                        </span>
+                        <span id="modal-year" class="text-gray-300">2024</span>
+                        <span id="modal-duration" class="text-gray-300">2h 15m</span>
+                        <span id="modal-genre" class="text-xs bg-netflixRed px-2 py-0.5 rounded text-white font-bold">Action</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Modal Body Content -->
+            <div class="p-6 md:p-8 overflow-y-auto space-y-6 flex-grow">
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    <div class="md:col-span-2 space-y-4">
+                        <p id="modal-synopsis" class="text-gray-300 text-sm md:text-base leading-relaxed">
+                            Synopsis...
+                        </p>
+                        <div class="flex items-center space-x-4 pt-2">
+                            <button id="modal-main-play-btn" class="bg-netflixRed hover:bg-red-700 text-white font-bold px-6 py-3 rounded flex items-center space-x-2 transition shadow-lg cursor-pointer">
+                                <i class="fa-solid fa-play"></i>
+                                <span id="modal-play-btn-text">Play</span>
+                            </button>
+                            <button class="bg-gray-800 hover:bg-gray-700 text-white font-semibold px-4 py-3 rounded flex items-center space-x-2 transition border border-gray-700 cursor-pointer">
+                                <i class="fa-solid fa-plus"></i>
+                                <span>My List</span>
+                            </button>
+                        </div>
+                    </div>
+                    <div class="bg-black/30 p-4 rounded-lg border border-gray-800 space-y-3 text-sm">
+                        <div>
+                            <span class="text-gray-500 block text-xs uppercase tracking-wider mb-1">Cast</span>
+                            <span id="modal-cast" class="text-gray-200 font-medium">Loading cast...</span>
+                        </div>
+                        <div>
+                            <span class="text-gray-500 block text-xs uppercase tracking-wider mb-1">Genres</span>
+                            <span id="modal-genres-list" class="text-gray-200 font-medium">Drama, Sci-Fi</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Episodes Section -->
+                <div id="modal-episodes-section" class="hidden space-y-4 pt-4 border-t border-gray-800">
+                    <div class="flex items-center justify-between">
+                        <h3 class="text-xl font-bold text-white">Episodes</h3>
+                        <select id="season-select" class="bg-gray-800 text-white text-sm border border-gray-700 rounded px-3 py-1.5 focus:outline-none">
+                            <option value="1">Season 1</option>
+                        </select>
+                    </div>
+                    <div id="episodes-list" class="space-y-3">
+                        <!-- Populated dynamically -->
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Embedded Video Player Modal (Red Sidebar Layout matching your reference image) -->
+    <div id="video-player-modal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/95 backdrop-blur-lg opacity-0 pointer-events-none transition-opacity duration-300 p-0 md:p-4">
+        <div class="relative w-full h-full md:h-[85vh] md:max-w-7xl bg-black rounded-none md:rounded-xl overflow-hidden shadow-2xl border border-gray-800 flex flex-col md:flex-row">
+            
+            <!-- Red Episodes Sidebar -->
+            <div id="player-sidebar" class="w-full md:w-80 bg-netflixRed text-white flex flex-col flex-shrink-0 border-r border-red-800 transition-all duration-300">
+                <div class="p-4 flex items-center justify-between border-b border-red-700/50">
+                    <span class="font-black text-lg tracking-wide uppercase">episodes:</span>
+                    <button id="sidebar-collapse-btn" class="text-white hover:text-black transition cursor-pointer p-1">
+                        <i class="fa-solid fa-chevron-left text-lg"></i>
+                    </button>
+                </div>
+                <div class="p-3 border-b border-red-700/50 bg-black/10">
+                    <select id="player-season-select" class="w-full bg-black/40 text-white text-xs border border-red-600 rounded px-2 py-1.5 focus:outline-none">
+                        <option value="1">Season 1</option>
+                    </select>
+                </div>
+                <div id="player-sidebar-episodes-list" class="flex-grow overflow-y-auto p-3 space-y-2 text-xs">
+                    <!-- Populated dynamically -->
+                </div>
+            </div>
+
+            <!-- Black Container for the Video Player -->
+            <div class="relative flex-grow bg-black flex flex-col h-full">
+                <!-- Top bar with title, Next/Prev buttons, and close button -->
+                <div class="absolute top-0 left-0 right-0 z-20 flex items-center justify-between p-4 bg-gradient-to-b from-black/90 to-transparent">
+                    <div id="player-title" class="text-white font-bold text-xs md:text-sm drop-shadow flex items-center space-x-3">
+                        <span>Now Playing</span>
+                    </div>
+                    <button id="player-close-btn" class="bg-black/60 hover:bg-netflixRed text-white w-9 h-9 rounded-full flex items-center justify-center transition border border-gray-700 cursor-pointer flex-shrink-0">
+                        <i class="fa-solid fa-xmark text-lg"></i>
+                    </button>
+                </div>
+                <!-- Embedded Iframe Player Area -->
+                <div class="flex-grow flex items-center justify-center p-0 md:p-8 h-full pt-16 md:pt-8">
+                    <iframe id="video-iframe" src="" class="w-full h-full md:w-[90%] md:h-[90%] border-0 rounded shadow-2xl bg-black" allowfullscreen></iframe>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <!-- Footer -->
+    <footer class="bg-[#141414] text-gray-500 py-12 px-4 md:px-12 border-t border-gray-900 mt-12 text-sm">
+        <div class="max-w-6xl mx-auto space-y-6">
+            <div class="flex space-x-6 text-lg text-gray-400">
+                <a href="#" class="hover:text-white transition"><i class="fa-brands fa-facebook-f"></i></a>
+                <a href="#" class="hover:text-white transition"><i class="fa-brands fa-instagram"></i></a>
+                <a href="#" class="hover:text-white transition"><i class="fa-brands fa-twitter"></i></a>
+                <a href="#" class="hover:text-white transition"><i class="fa-brands fa-youtube"></i></a>
+            </div>
+            <div class="grid grid-cols-2 sm:grid-cols-4 gap-4 text-xs">
+                <div class="space-y-2">
+                    <a href="#" class="block hover:underline">Audio Description</a>
+                    <a href="#" class="block hover:underline">Investor Relations</a>
+                    <a href="#" class="block hover:underline">Legal Notices</a>
+                </div>
+                <div class="space-y-2">
+                    <a href="#" class="block hover:underline">Help Center</a>
+                    <a href="#" class="block hover:underline">Jobs</a>
+                    <a href="#" class="block hover:underline">Cookie Preferences</a>
+                </div>
+                <div class="space-y-2">
+                    <a href="#" class="block hover:underline">Gift Cards</a>
+                    <a href="#" class="block hover:underline">Terms of Use</a>
+                    <a href="#" class="block hover:underline">Corporate Information</a>
+                </div>
+                <div class="space-y-2">
+                    <a href="#" class="block hover:underline">Media Center</a>
+                    <a href="#" class="block hover:underline">Privacy</a>
+                    <a href="#" class="block hover:underline">Contact Us</a>
+                </div>
+            </div>
+            <div class="pt-4 text-xs text-gray-600">
+                &copy; 2026 Netflix IMDb Explorer, Inc. All rights reserved.
+            </div>
+        </div>
+    </footer>
+
+    <!-- Script Application Logic File -->
+    <script src="app.js"></script>
+</body>
+</html>
