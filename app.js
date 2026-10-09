@@ -4,7 +4,7 @@
 
 // --- CONFIGURATION ---
 const CONFIG = {
-    domain: 'https://player.vidzee.wtf/embed', // Replace with your domain when ready
+    domain: 'https://vidstorm.to', // Replace with your domain when ready
     publicDemoKey: '2993855ff9655e88d076d338f71295fc',
     tmdbBaseUrl: 'https://api.themoviedb.org/3',
     imageBaseUrl: 'https://image.tmdb.org/t/p/original',
