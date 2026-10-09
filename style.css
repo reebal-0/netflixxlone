@@ -342,3 +342,134 @@ body {
 .pl-nav-btn { padding: 0.8rem 1.4rem; font-size: 0.95rem; }
 .pl-nav-btn i { font-size: 1.1rem; }
 .pl-episodes-btn { padding: 0.8rem 1.4rem; font-size: 0.95rem; }
+
+
+/* =====================================================================
+   ACCOUNTS, PROFILE & LISTS
+   ===================================================================== */
+.nav-avatar {
+    width: 2rem; height: 2rem; flex-shrink: 0;
+    display: flex; align-items: center; justify-content: center;
+    border-radius: 0.375rem; overflow: hidden;
+    border: 1px solid #4b5563; background: #222;
+}
+.nav-avatar svg, .avatar-opt svg, .profile-avatar-preview svg { image-rendering: pixelated; }
+
+/* "+ / ✓" button on posters */
+.list-add-btn {
+    position: absolute; top: 0.5rem; left: 0.5rem; z-index: 5;
+    width: 2rem; height: 2rem; border-radius: 9999px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 0.75rem; color: #fff; cursor: pointer;
+    background: rgba(0, 0, 0, 0.72); border: 1px solid rgba(255, 255, 255, 0.35);
+    opacity: 0; transform: scale(0.85);
+    transition: opacity 0.2s, transform 0.2s, background 0.15s, color 0.15s;
+}
+.movie-card:hover .list-add-btn, .list-add-btn:focus-visible, .list-add-btn.is-saved { opacity: 1; transform: scale(1); }
+.list-add-btn:hover { background: #E50914; border-color: #E50914; color: #fff; }
+.list-add-btn.is-saved { background: #fff; color: #000; border-color: #fff; }
+.list-add-btn.is-saved:hover { background: #E50914; color: #fff; }
+@media (hover: none) { .list-add-btn { opacity: 1; transform: none; } }
+
+.hero-list-btn {
+    width: 2.9rem; height: 2.9rem; border-radius: 9999px; flex-shrink: 0;
+    display: flex; align-items: center; justify-content: center;
+    color: #fff; font-size: 1rem; cursor: pointer;
+    background: rgba(42, 42, 42, 0.7); border: 2px solid rgba(255, 255, 255, 0.5);
+    backdrop-filter: blur(6px); transition: background 0.15s, border-color 0.15s, color 0.15s;
+}
+.hero-list-btn:hover { border-color: #fff; background: rgba(255, 255, 255, 0.2); }
+.hero-list-btn.is-saved { background: #fff; color: #000; border-color: #fff; }
+
+/* sign in / sign up */
+.auth-tabs { display: inline-flex; background: rgba(0, 0, 0, 0.4); border-radius: 0.5rem; padding: 0.25rem; }
+.auth-tabs button {
+    padding: 0.45rem 1.1rem; border-radius: 0.4rem; font-size: 0.85rem; font-weight: 700;
+    color: #9ca3af; cursor: pointer; transition: background 0.15s, color 0.15s;
+}
+.auth-tabs button.is-active { background: #E50914; color: #fff; }
+.auth-input {
+    width: 100%; background: rgba(0, 0, 0, 0.55); color: #fff;
+    border: 1px solid #374151; border-radius: 0.375rem;
+    padding: 0.7rem 0.85rem; font-size: 0.9rem; outline: none;
+    transition: border-color 0.15s;
+}
+.auth-input:focus { border-color: #E50914; }
+.auth-input::placeholder { color: #6b7280; }
+
+/* profile */
+.profile-avatar-preview {
+    width: 5.5rem; height: 5.5rem; flex-shrink: 0; overflow: hidden;
+    border-radius: 0.75rem; border: 2px solid #E50914; background: #222;
+}
+.avatar-opt {
+    aspect-ratio: 1; padding: 0; background: none; overflow: hidden; cursor: pointer;
+    border-radius: 0.65rem; border: 2px solid transparent;
+    transition: transform 0.15s, border-color 0.15s, box-shadow 0.15s;
+}
+.avatar-opt:hover { transform: translateY(-3px); }
+.avatar-opt.is-selected { border-color: #E50914; box-shadow: 0 0 0 3px rgba(229, 9, 20, 0.35); }
+
+/* list picker */
+.picker-row {
+    width: 100%; display: flex; align-items: center; gap: 0.75rem;
+    padding: 0.7rem 0.75rem; border-radius: 0.5rem; text-align: left;
+    color: #e5e7eb; cursor: pointer; transition: background 0.15s;
+}
+.picker-row:hover { background: rgba(255, 255, 255, 0.07); }
+.picker-row i { font-size: 1.05rem; color: #6b7280; }
+.picker-row.is-on i { color: #E50914; }
+.picker-name { flex: 1; min-width: 0; font-size: 0.9rem; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.picker-count { font-size: 0.75rem; color: #6b7280; }
+
+/* My Lists page */
+.list-tab {
+    display: inline-flex; align-items: center; gap: 0.5rem;
+    padding: 0.5rem 1rem; border-radius: 9999px; font-size: 0.85rem; font-weight: 600;
+    color: #d1d5db; background: #1f1f1f; border: 1px solid #333; cursor: pointer;
+    transition: background 0.15s, color 0.15s, border-color 0.15s;
+}
+.list-tab span { font-size: 0.7rem; opacity: 0.7; }
+.list-tab:hover { background: #2a2a2a; }
+.list-tab.is-active { background: #fff; color: #000; border-color: #fff; }
+.list-tab-new { border-style: dashed; color: #E50914; border-color: rgba(229, 9, 20, 0.5); background: transparent; }
+.list-tab-new:hover { background: rgba(229, 9, 20, 0.12); }
+.list-item { cursor: pointer; }
+.list-remove-btn {
+    position: absolute; top: 0.5rem; right: 0.5rem;
+    width: 1.9rem; height: 1.9rem; border-radius: 9999px;
+    display: flex; align-items: center; justify-content: center;
+    background: rgba(0, 0, 0, 0.75); color: #fff; font-size: 0.8rem; cursor: pointer;
+    border: 1px solid rgba(255, 255, 255, 0.3); opacity: 0; transition: opacity 0.2s, background 0.15s;
+}
+.list-item:hover .list-remove-btn, .list-remove-btn:focus-visible { opacity: 1; }
+.list-remove-btn:hover { background: #E50914; }
+@media (hover: none) { .list-remove-btn { opacity: 1; } }
+
+/* toast */
+.nx-toast {
+    position: fixed; left: 50%; bottom: 1.75rem; z-index: 200;
+    transform: translateX(-50%); padding: 0.7rem 1.25rem;
+    background: #fff; color: #000; font-weight: 700; font-size: 0.875rem;
+    border-radius: 9999px; box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+    animation: nx-toast 2.4s ease forwards; pointer-events: none;
+}
+@keyframes nx-toast {
+    0% { opacity: 0; transform: translate(-50%, 10px); }
+    10%, 85% { opacity: 1; transform: translate(-50%, 0); }
+    100% { opacity: 0; transform: translate(-50%, 6px); }
+}
+
+/* ---- Server picker ---- */
+.server-row { border: 1px solid #2a2a2a; background: #1f1f1f; }
+.server-row.is-on { border-color: #E50914; background: rgba(229, 9, 20, 0.1); }
+.server-row .server-radio { color: #6b7280; }
+.server-row.is-on .server-radio { color: #E50914; }
+.server-host { display: block; font-size: 0.7rem; font-weight: 500; color: #9ca3af; }
+.server-del {
+    width: 1.9rem; height: 1.9rem; flex-shrink: 0; border-radius: 9999px;
+    display: flex; align-items: center; justify-content: center; cursor: pointer;
+    color: #9ca3af; transition: background 0.15s, color 0.15s;
+}
+.server-del:hover { background: #E50914; color: #fff; }
+.server-row .server-del i { color: inherit; font-size: 0.8rem; }
