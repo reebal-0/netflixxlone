@@ -19,9 +19,9 @@ const CONFIG = {
 // Each server must accept:  {domain}/movie/{tmdbId}  and  {domain}/tv/{tmdbId}/{season}/{episode}
 // =====================================================================
 const SERVER_PRESETS = [
-    { name: 'Server 1', url: 'https://vidrock.to' },
+    { name: 'Server 1', url: 'https://player.vidzee.wtf/embed' },
     { name: 'Server 2', url: 'https://vidstorm.to' },
-    { name: 'Server 3', url: 'https://player.vidzee.wtf/embed' },
+    { name: 'Server 3', url: 'https://vidrock.to' },
     { name: 'Server 4', url: 'https://vidnest.fun' },
     { name: 'Server 5', url: 'https://vidlink.pro' }
 ];
