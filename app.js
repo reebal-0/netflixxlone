@@ -4,7 +4,7 @@
 
 // --- CONFIGURATION ---
 const CONFIG = {
-    domain: 'https://vidrock.to', // Replace with your domain when ready
+    domain: 'https://player.vidzee.wtf/embed', // Replace with your domain when ready
     publicDemoKey: '2993855ff9655e88d076d338f71295fc',
     tmdbBaseUrl: 'https://api.themoviedb.org/3',
     imageBaseUrl: 'https://image.tmdb.org/t/p/original',
@@ -17,14 +17,6 @@ let currentActiveItem = null;
 let catalog = {};
 let allMediaMap = new Map();
 let searchTimeout = null;
-
-let currentPlayback = {
-    tvId: null,
-    seasonNum: 1,
-    episodeNum: 1,
-    title: '',
-    maxEpisodesInSeason: 1
-};
 
 let recentlyBrowsed = JSON.parse(localStorage.getItem('recently_browsed_media') || '[]');
 
@@ -474,7 +466,7 @@ async function loadEpisodesForSeason(tvId, seasonNum) {
         
         if (data.episodes && data.episodes.length > 0) {
             episodesList.innerHTML = data.episodes.map(ep => `
-                <div onclick="playEpisode('${tvId}', '${seasonNum}', '${ep.episode_number}', '${ep.name || 'Untitled'}')" class="flex items-center justify-between p-3 bg-black/40 hover:bg-black/70 rounded-lg text-sm text-gray-300 border border-gray-800 transition cursor-pointer group">
+                <div onclick="playEpisode('${tvId}', '${seasonNum}', '${ep.episode_number}')" class="flex items-center justify-between p-3 bg-black/40 hover:bg-black/70 rounded-lg text-sm text-gray-300 border border-gray-800 transition cursor-pointer group">
                     <div class="flex items-center space-x-3 pr-2">
                         <span class="text-gray-400 font-bold w-6 text-center">${ep.episode_number}</span>
                         <div>
@@ -498,209 +490,311 @@ async function loadEpisodesForSeason(tvId, seasonNum) {
     }
 }
 
-function playEpisode(tvId, seasonNum, episodeNum, epTitle) {
-    closeModal();
-    const embedUrl = `${CONFIG.domain}/tv/${tvId}/${seasonNum}/${episodeNum}`;
-    const displayTitle = currentActiveItem ? `${currentActiveItem.title} - S${seasonNum}E${episodeNum}: ${epTitle}` : `TV Show S${seasonNum}E${episodeNum}`;
-    openVideoPlayer(embedUrl, displayTitle, currentActiveItem, seasonNum, Number(episodeNum));
+// =====================================================================
+// VIDEO PLAYER
+// =====================================================================
+const seasonCache = new Map();
+
+let player = {
+    open: false,
+    item: null,
+    tvId: null,
+    title: '',
+    isSeries: false,
+    season: 1,
+    episode: 1,
+    viewSeason: 1,     // season currently listed in the sidebar (can differ from the playing one)
+    totalSeasons: 1,
+    token: 0,          // bumps on every navigation so stale async results are ignored
+    loadTimer: null
+};
+
+const plEl = (id) => document.getElementById(id);
+const isDesktop = () => window.matchMedia('(min-width: 768px)').matches;
+
+function escapeHtml(str) {
+    return String(str ?? '').replace(/[&<>"']/g, c => ({
+        '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+    }[c]));
 }
 
-function initVideoPlayerModal() {
-    const modal = document.getElementById('video-player-modal');
-    const closeBtn = document.getElementById('player-close-btn');
-    const collapseBtn = document.getElementById('sidebar-collapse-btn');
-    const sidebar = document.getElementById('player-sidebar');
-
-    closeBtn.addEventListener('click', closeVideoPlayer);
-    modal.addEventListener('click', (e) => { if (e.target === modal) closeVideoPlayer(); });
-    document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeVideoPlayer(); });
-
-    collapseBtn.addEventListener('click', () => {
-        sidebar.classList.toggle('md:w-0');
-        sidebar.classList.toggle('md:opacity-0');
-        collapseBtn.querySelector('i').classList.toggle('fa-chevron-left');
-        collapseBtn.querySelector('i').classList.toggle('fa-chevron-right');
-    });
-
-    const playerSeasonSelect = document.getElementById('player-season-select');
-    playerSeasonSelect.addEventListener('change', (e) => {
-        if (currentActiveItem && currentActiveItem.type === 'series') {
-            loadPlayerSidebarEpisodes(currentActiveItem.id, e.target.value);
-        }
-    });
+function episodeUrl(tvId, season, episode) {
+    return `${CONFIG.domain}/tv/${tvId}/${season}/${episode}`;
 }
 
-async function openVideoPlayer(url, titleText, item, activeSeason = 1, activeEpisode = 1) {
-    const modal = document.getElementById('video-player-modal');
-    const iframe = document.getElementById('video-iframe');
-    const titleEl = document.getElementById('player-title');
-    const sidebar = document.getElementById('player-sidebar');
+// Fetch (and cache) the episode list of one season.
+async function fetchSeason(tvId, seasonNum) {
+    const key = `${tvId}:${seasonNum}`;
+    if (seasonCache.has(key)) return seasonCache.get(key);
 
-    currentPlayback = {
-        tvId: item ? item.id : null,
-        seasonNum: Number(activeSeason),
-        episodeNum: Number(activeEpisode),
-        title: item ? item.title : 'Show',
-        maxEpisodesInSeason: 20
-    };
-
-    if (item && item.type === 'series' && !String(item.id).startsWith('f')) {
-        try {
-            const res = await fetch(`${CONFIG.tmdbBaseUrl}/tv/${item.id}/season/${activeSeason}?api_key=${userApiKey}`);
-            const data = await res.json();
-            if (data.episodes) {
-                currentPlayback.maxEpisodesInSeason = data.episodes.length;
-            }
-        } catch (e) {}
-    }
-
-    titleEl.innerHTML = `
-        <div class="flex items-center space-x-3">
-            <span class="truncate max-w-[180px] sm:max-w-xs md:max-w-md">${titleText}</span>
-            ${item && item.type === 'series' ? `
-                <div class="flex items-center space-x-1.5 flex-shrink-0">
-                    <button onclick="playPrevEpisode()" class="bg-gray-800 hover:bg-netflixRed text-white text-xs px-2 py-1 rounded transition flex items-center space-x-1 cursor-pointer">
-                        <i class="fa-solid fa-backward-step text-[10px]"></i>
-                        <span class="hidden sm:inline">Prev</span>
-                    </button>
-                    <button onclick="playNextEpisode()" class="bg-gray-800 hover:bg-netflixRed text-white text-xs px-2 py-1 rounded transition flex items-center space-x-1 cursor-pointer">
-                        <span class="hidden sm:inline">Next</span>
-                        <i class="fa-solid fa-forward-step text-[10px]"></i>
-                    </button>
-                </div>
-            ` : ''}
-        </div>
-    `;
-
-    iframe.src = url;
-
-    if (item && item.type === 'series') {
-        sidebar.style.display = 'flex';
-        setupPlayerSeasonsDropdown(item.id, item.seasonsCount || 1, activeSeason);
+    let episodes = null;
+    if (String(tvId).startsWith('f')) {
+        // Offline fallback shows: generate a placeholder list
+        episodes = Array.from({ length: 8 }, (_, i) => ({
+            episode_number: i + 1, name: `Episode ${i + 1}`, runtime: 45
+        }));
     } else {
-        sidebar.style.display = 'none';
-    }
-
-    modal.classList.remove('opacity-0', 'pointer-events-none');
-    document.body.style.overflow = 'hidden';
-}
-
-function playPrevEpisode() {
-    if (currentPlayback.episodeNum > 1) {
-        currentPlayback.episodeNum -= 1;
-        updatePlayerState();
-    } else if (currentPlayback.seasonNum > 1) {
-        currentPlayback.seasonNum -= 1;
-        currentPlayback.episodeNum = 1;
-        updatePlayerState();
-    }
-}
-
-function playNextEpisode() {
-    if (currentPlayback.episodeNum < currentPlayback.maxEpisodesInSeason) {
-        currentPlayback.episodeNum += 1;
-        updatePlayerState();
-    } else if (currentActiveItem && currentPlayback.seasonNum < (currentActiveItem.seasonsCount || 1)) {
-        currentPlayback.seasonNum += 1;
-        currentPlayback.episodeNum = 1;
-        updatePlayerState();
-    }
-}
-
-async function updatePlayerState() {
-    const { tvId, seasonNum, episodeNum, title } = currentPlayback;
-    const newUrl = `${CONFIG.domain}/tv/${tvId}/${seasonNum}/${episodeNum}`;
-    
-    let epName = `Episode ${episodeNum}`;
-    if (!String(tvId).startsWith('f')) {
         try {
             const res = await fetch(`${CONFIG.tmdbBaseUrl}/tv/${tvId}/season/${seasonNum}?api_key=${userApiKey}`);
             const data = await res.json();
-            if (data.episodes) {
-                currentPlayback.maxEpisodesInSeason = data.episodes.length;
-                const found = data.episodes.find(e => e.episode_number === episodeNum);
-                if (found && found.name) epName = found.name;
-            }
-        } catch(e) {}
+            if (Array.isArray(data.episodes) && data.episodes.length) episodes = data.episodes;
+        } catch (e) { /* network error -> return [] below, not cached */ }
     }
 
-    const displayTitle = `${title} - S${seasonNum}E${episodeNum}: ${epName}`;
-    
-    document.getElementById('video-iframe').src = newUrl;
-    
-    document.getElementById('player-title').innerHTML = `
-        <div class="flex items-center space-x-3">
-            <span class="truncate max-w-[180px] sm:max-w-xs md:max-w-md">${displayTitle}</span>
-            <div class="flex items-center space-x-1.5 flex-shrink-0">
-                <button onclick="playPrevEpisode()" class="bg-gray-800 hover:bg-netflixRed text-white text-xs px-2 py-1 rounded transition flex items-center space-x-1 cursor-pointer">
-                    <i class="fa-solid fa-backward-step text-[10px]"></i>
-                    <span class="hidden sm:inline">Prev</span>
-                </button>
-                <button onclick="playNextEpisode()" class="bg-gray-800 hover:bg-netflixRed text-white text-xs px-2 py-1 rounded transition flex items-center space-x-1 cursor-pointer">
-                    <span class="hidden sm:inline">Next</span>
-                    <i class="fa-solid fa-forward-step text-[10px]"></i>
-                </button>
-            </div>
-        </div>
-    `;
-
-    const playerSeasonSelect = document.getElementById('player-season-select');
-    if (playerSeasonSelect) playerSeasonSelect.value = seasonNum;
-    loadPlayerSidebarEpisodes(tvId, seasonNum);
+    if (episodes) seasonCache.set(key, episodes);
+    return episodes || [];
 }
 
-function setupPlayerSeasonsDropdown(tvId, count, activeSeason) {
-    const select = document.getElementById('player-season-select');
-    select.innerHTML = '';
-    for (let s = 1; s <= count; s++) {
-        const opt = document.createElement('option');
-        opt.value = s;
-        opt.textContent = `Season ${s}`;
-        if (s == activeSeason) opt.selected = true;
-        select.appendChild(opt);
-    }
-    loadPlayerSidebarEpisodes(tvId, activeSeason);
+// Called from the details modal. Resolves the show BEFORE closing the modal
+// (closeModal() clears currentActiveItem, which is what used to break the player).
+function playEpisode(tvId, seasonNum, episodeNum) {
+    const item = allMediaMap.get(String(tvId)) || currentActiveItem;
+    closeModal();
+    openVideoPlayer(null, item ? item.title : 'Now Playing', item, seasonNum, episodeNum);
 }
 
-async function loadPlayerSidebarEpisodes(tvId, seasonNum) {
-    const listEl = document.getElementById('player-sidebar-episodes-list');
-    listEl.innerHTML = `<div class="text-white/70 text-center py-2">Loading...</div>`;
+async function openVideoPlayer(url, titleText, item, activeSeason = 1, activeEpisode = 1) {
+    const isSeries = !!item && item.type === 'series';
+    const season = Number(activeSeason) || 1;
 
-    if (String(tvId).startsWith('f')) {
-        listEl.innerHTML = `
-            <div onclick="playEpisode('${tvId}', '${seasonNum}', '1', 'Pilot')" class="p-2 bg-black/20 hover:bg-black/40 rounded cursor-pointer transition text-white">
-                <p class="font-bold">Ep 1: Pilot</p>
-            </div>
-            <div onclick="playEpisode('${tvId}', '${seasonNum}', '2', 'Next Steps')" class="p-2 bg-black/20 hover:bg-black/40 rounded cursor-pointer transition text-white">
-                <p class="font-bold">Ep 2: Next Steps</p>
-            </div>
-        `;
+    player = {
+        ...player,
+        open: true,
+        item,
+        tvId: item ? item.id : null,
+        title: isSeries ? item.title : titleText,
+        isSeries,
+        season,
+        episode: Number(activeEpisode) || 1,
+        viewSeason: season,
+        totalSeasons: (item && item.seasonsCount) || 1,
+        token: player.token + 1
+    };
+
+    plEl('player-title').textContent = player.title;
+    plEl('player-subtitle').textContent = '';
+    plEl('player-controls').classList.toggle('hidden', !isSeries);
+    plEl('player-top-nav').classList.toggle('hidden', !isSeries);
+    plEl('player-menu-btn').classList.toggle('hidden', !isSeries);
+    plEl('player-sidebar').classList.toggle('hidden', !isSeries);
+
+    plEl('video-player-modal').classList.remove('opacity-0', 'pointer-events-none');
+    document.body.style.overflow = 'hidden';
+
+    if (!isSeries) {
+        setPlayerSidebar(false);
+        setPlayerSource(url);
         return;
     }
 
-    try {
-        const res = await fetch(`${CONFIG.tmdbBaseUrl}/tv/${tvId}/season/${seasonNum}?api_key=${userApiKey}`);
-        const data = await res.json();
-        
-        if (data.episodes) {
-            listEl.innerHTML = data.episodes.map(ep => `
-                <div onclick="playEpisode('${tvId}', '${seasonNum}', '${ep.episode_number}', '${ep.name || 'Untitled'}')" class="p-2 ${ep.episode_number === currentPlayback.episodeNum && seasonNum === currentPlayback.seasonNum ? 'bg-black/60 border border-white/20' : 'bg-black/20'} hover:bg-black/40 rounded cursor-pointer transition text-white space-y-0.5">
-                    <p class="font-bold text-xs truncate">${ep.episode_number}. ${ep.name || 'Episode'}</p>
-                    <p class="text-[10px] text-white/70">${ep.runtime ? ep.runtime + 'm' : '40m'}</p>
-                </div>
-            `).join('');
+    setupPlayerSeasonsDropdown();
+    setPlayerSidebar(isDesktop());
+    await loadEpisode(player.season, player.episode);
+}
+
+// Load a specific episode into the iframe and refresh title, buttons and sidebar.
+async function loadEpisode(season, episode) {
+    const token = ++player.token;
+    player.season = season;
+    player.episode = episode;
+    player.viewSeason = season;
+
+    setPlayerSource(episodeUrl(player.tvId, season, episode));
+    plEl('player-subtitle').textContent = `Season ${season} · Episode ${episode}`;
+    syncSeasonSelect();
+    setNavButtons(false, false, '', '');
+    plEl('player-sidebar-episodes-list').innerHTML = `<div class="pl-empty">Loading…</div>`;
+
+    const eps = await fetchSeason(player.tvId, season);
+    if (token !== player.token) return;
+
+    const current = eps.find(e => e.episode_number === episode);
+    plEl('player-subtitle').textContent =
+        `Season ${season} · Episode ${episode}` + (current && current.name ? ` — ${current.name}` : '');
+
+    updateNavButtons(eps);
+    renderSidebarEpisodes(eps, season);
+}
+
+function updateNavButtons(eps) {
+    const { season, episode, totalSeasons } = player;
+    const idx = eps.findIndex(e => e.episode_number === episode);
+    const label = (ep) => `E${ep.episode_number}: ${ep.name || 'Episode ' + ep.episode_number}`;
+
+    let hasPrev, hasNext, prevText = '', nextText = '';
+
+    if (eps.length === 0) {                // episode list failed to load: still allow stepping
+        hasPrev = episode > 1 || season > 1;
+        hasNext = true;
+    } else {
+        hasPrev = idx > 0 || season > 1;
+        hasNext = idx < eps.length - 1 || season < totalSeasons;
+        if (idx > 0) prevText = label(eps[idx - 1]);
+        else if (season > 1) prevText = `Season ${season - 1}`;
+        if (idx >= 0 && idx < eps.length - 1) nextText = label(eps[idx + 1]);
+        else if (season < totalSeasons) nextText = `Season ${season + 1}`;
+    }
+    setNavButtons(hasPrev, hasNext, prevText, nextText);
+}
+
+function setNavButtons(hasPrev, hasNext, prevText, nextText) {
+    plEl('player-prev-btn').disabled = !hasPrev;
+    plEl('player-next-btn').disabled = !hasNext;
+    plEl('player-prev-top').disabled = !hasPrev;
+    plEl('player-next-top').disabled = !hasNext;
+    plEl('prev-label').textContent = prevText;
+    plEl('next-label').textContent = nextText;
+}
+
+// dir: +1 = next episode, -1 = previous episode. Crosses season boundaries.
+async function stepEpisode(dir) {
+    if (!player.isSeries) return;
+    const { tvId, season, episode, totalSeasons } = player;
+    const eps = await fetchSeason(tvId, season);
+    const idx = eps.findIndex(e => e.episode_number === episode);
+
+    if (dir > 0) {
+        if (eps.length === 0) return loadEpisode(season, episode + 1);
+        if (idx >= 0 && idx < eps.length - 1) return loadEpisode(season, eps[idx + 1].episode_number);
+        if (season < totalSeasons) {
+            const nextEps = await fetchSeason(tvId, season + 1);
+            return loadEpisode(season + 1, nextEps.length ? nextEps[0].episode_number : 1);
         }
-    } catch(err) {
-        listEl.innerHTML = `<div class="text-white/70 text-center py-2">Failed to load</div>`;
+    } else {
+        if (eps.length === 0 && episode > 1) return loadEpisode(season, episode - 1);
+        if (idx > 0) return loadEpisode(season, eps[idx - 1].episode_number);
+        if (season > 1) {
+            const prevEps = await fetchSeason(tvId, season - 1);
+            return loadEpisode(season - 1, prevEps.length ? prevEps[prevEps.length - 1].episode_number : 1);
+        }
     }
 }
 
-function closeVideoPlayer() {
-    const modal = document.getElementById('video-player-modal');
-    const iframe = document.getElementById('video-iframe');
+function playNextEpisode() { stepEpisode(1); }
+function playPrevEpisode() { stepEpisode(-1); }
 
-    modal.classList.add('opacity-0', 'pointer-events-none');
-    iframe.src = '';
+// ---- Sidebar -------------------------------------------------------
+function setupPlayerSeasonsDropdown() {
+    const select = plEl('player-season-select');
+    select.innerHTML = '';
+    for (let s = 1; s <= player.totalSeasons; s++) {
+        const opt = document.createElement('option');
+        opt.value = s;
+        opt.textContent = `Season ${s}`;
+        select.appendChild(opt);
+    }
+    select.value = player.season;
+}
+
+function syncSeasonSelect() {
+    const select = plEl('player-season-select');
+    if (select) select.value = player.viewSeason;
+}
+
+function renderSidebarEpisodes(eps, seasonNum) {
+    if (player.viewSeason !== seasonNum) return;   // user switched seasons meanwhile
+    const list = plEl('player-sidebar-episodes-list');
+
+    if (!eps.length) {
+        list.innerHTML = `<div class="pl-empty">No episodes found for this season.</div>`;
+        return;
+    }
+
+    list.innerHTML = eps.map(ep => {
+        const active = seasonNum === player.season && ep.episode_number === player.episode;
+        return `
+            <button type="button" class="pl-ep ${active ? 'is-active' : ''}" data-season="${seasonNum}" data-ep="${ep.episode_number}">
+                <span class="pl-ep-num">${ep.episode_number}</span>
+                <span class="pl-ep-info">
+                    <b>${escapeHtml(ep.name || 'Episode ' + ep.episode_number)}</b>
+                    <small>${ep.runtime ? ep.runtime + ' min' : '40 min'}</small>
+                </span>
+                <i class="fa-solid fa-play"></i>
+            </button>`;
+    }).join('');
+
+    const activeEl = list.querySelector('.is-active');
+    if (activeEl) activeEl.scrollIntoView({ block: 'center' });
+}
+
+async function showSeasonInSidebar(seasonNum) {
+    player.viewSeason = seasonNum;
+    plEl('player-sidebar-episodes-list').innerHTML = `<div class="pl-empty">Loading…</div>`;
+    const eps = await fetchSeason(player.tvId, seasonNum);
+    renderSidebarEpisodes(eps, seasonNum);
+}
+
+function setPlayerSidebar(open) {
+    plEl('player-sidebar').classList.toggle('is-collapsed', !open);
+    plEl('player-sidebar-backdrop').classList.toggle('is-hidden', !open);
+    plEl('sidebar-collapse-btn').querySelector('i').className =
+        `fa-solid ${open ? 'fa-chevron-left' : 'fa-chevron-right'}`;
+}
+
+function togglePlayerSidebar() {
+    if (!player.isSeries) return;
+    setPlayerSidebar(plEl('player-sidebar').classList.contains('is-collapsed'));
+}
+
+// ---- Iframe / lifecycle -------------------------------------------
+function setPlayerSource(url) {
+    const iframe = plEl('video-iframe');
+    const loading = plEl('player-loading');
+    clearTimeout(player.loadTimer);
+    loading.classList.remove('is-hidden');
+    iframe.onload = () => loading.classList.add('is-hidden');
+    player.loadTimer = setTimeout(() => loading.classList.add('is-hidden'), 8000);
+    iframe.src = url;
+}
+
+function initVideoPlayerModal() {
+    const modal = plEl('video-player-modal');
+
+    plEl('player-close-btn').addEventListener('click', closeVideoPlayer);
+    modal.addEventListener('click', (e) => { if (e.target === modal) closeVideoPlayer(); });
+
+    plEl('sidebar-collapse-btn').addEventListener('click', togglePlayerSidebar);
+    plEl('player-menu-btn').addEventListener('click', togglePlayerSidebar);
+    plEl('player-episodes-btn').addEventListener('click', togglePlayerSidebar);
+    plEl('player-sidebar-backdrop').addEventListener('click', () => setPlayerSidebar(false));
+
+    plEl('player-prev-btn').addEventListener('click', playPrevEpisode);
+    plEl('player-prev-top').addEventListener('click', playPrevEpisode);
+    plEl('player-next-top').addEventListener('click', playNextEpisode);
+    plEl('player-next-btn').addEventListener('click', playNextEpisode);
+
+    plEl('player-season-select').addEventListener('change', (e) => {
+        if (player.isSeries) showSeasonInSidebar(Number(e.target.value));
+    });
+
+    plEl('player-sidebar-episodes-list').addEventListener('click', (e) => {
+        const row = e.target.closest('[data-ep]');
+        if (!row) return;
+        loadEpisode(Number(row.dataset.season), Number(row.dataset.ep));
+        if (!isDesktop()) setPlayerSidebar(false);
+    });
+
+    document.addEventListener('keydown', (e) => {
+        if (!player.open) return;
+        if (e.key === 'Escape') { closeVideoPlayer(); return; }
+        if (!player.isSeries || e.ctrlKey || e.metaKey || e.altKey) return;
+        if (e.target.matches && e.target.matches('input, textarea, select')) return;
+        const k = e.key.toLowerCase();
+        if (k === 'n') playNextEpisode();
+        else if (k === 'p') playPrevEpisode();
+        else if (k === 'e') togglePlayerSidebar();
+    });
+}
+
+function closeVideoPlayer() {
+    const iframe = plEl('video-iframe');
+    clearTimeout(player.loadTimer);
+    player.open = false;
+    player.token++;              // cancel any in-flight episode loads
+
+    plEl('video-player-modal').classList.add('opacity-0', 'pointer-events-none');
+    iframe.onload = null;
+    iframe.src = 'about:blank';
     document.body.style.overflow = 'auto';
 }
 
