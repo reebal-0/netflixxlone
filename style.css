@@ -28,3 +28,317 @@ body {
     z-index: 50;
     box-shadow: 0 20px 30px rgba(0,0,0,0.7);
 }
+
+
+/* =====================================================================
+   VIDEO PLAYER
+   ===================================================================== */
+.pl-shell {
+    position: relative;
+    display: flex;
+    width: 100%;
+    height: 100%;
+    background: #000;
+    overflow: hidden;
+}
+@media (min-width: 768px) {
+    .pl-shell {
+        height: 88vh;
+        max-width: 80rem;
+        border-radius: 0.875rem;
+        border: 1px solid #262626;
+        box-shadow: 0 30px 80px rgba(0, 0, 0, 0.8);
+    }
+}
+
+/* ---- Red episodes sidebar (as in the reference image) ---- */
+.pl-sidebar {
+    position: relative;
+    flex-shrink: 0;
+    width: 20rem;
+    background: #E50914;
+    color: #000;
+    overflow: hidden;
+    transition: width 0.3s ease, transform 0.3s ease;
+}
+.pl-sidebar.is-collapsed { width: 0; }
+.pl-sidebar-inner {
+    width: 20rem;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+}
+.pl-sidebar-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 1rem 1rem 0.5rem 1.25rem;
+}
+.pl-sidebar-head span {
+    font-weight: 800;
+    font-size: 1.05rem;
+    color: #000;
+}
+.pl-sidebar-head button {
+    width: 2rem;
+    height: 2rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 9999px;
+    color: #000;
+    font-size: 1.1rem;
+    cursor: pointer;
+    transition: background 0.15s;
+}
+.pl-sidebar-head button:hover { background: rgba(0, 0, 0, 0.15); }
+
+.pl-season-wrap { padding: 0.25rem 1rem 0.75rem; }
+.pl-season-wrap select {
+    width: 100%;
+    background: rgba(0, 0, 0, 0.2);
+    color: #000;
+    font-weight: 700;
+    font-size: 0.8rem;
+    border: 0;
+    border-radius: 0.5rem;
+    padding: 0.55rem 0.75rem;
+    cursor: pointer;
+    outline: none;
+}
+.pl-season-wrap select:focus-visible { box-shadow: 0 0 0 2px #000; }
+.pl-season-wrap option { background: #141414; color: #fff; }
+
+.pl-ep-list {
+    flex: 1;
+    overflow-y: auto;
+    padding: 0.25rem 0.6rem 1rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.2rem;
+}
+.pl-empty {
+    padding: 1.5rem 0.5rem;
+    text-align: center;
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: rgba(0, 0, 0, 0.7);
+}
+.pl-ep {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    width: 100%;
+    text-align: left;
+    padding: 0.65rem 0.6rem;
+    border-radius: 0.6rem;
+    color: #000;
+    background: transparent;
+    border: 0;
+    cursor: pointer;
+    transition: background 0.15s, color 0.15s;
+}
+.pl-ep:hover { background: rgba(0, 0, 0, 0.15); }
+.pl-ep:focus-visible { outline: 2px solid #000; outline-offset: -2px; }
+.pl-ep-num {
+    width: 1.75rem;
+    flex-shrink: 0;
+    text-align: center;
+    font-weight: 800;
+    font-size: 1rem;
+    opacity: 0.7;
+}
+.pl-ep-info { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.pl-ep-info b {
+    font-weight: 700;
+    font-size: 0.82rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.pl-ep-info small { font-size: 0.7rem; font-weight: 500; opacity: 0.7; }
+.pl-ep > i { display: none; font-size: 0.7rem; color: #E50914; }
+.pl-ep.is-active { background: #000; color: #fff; }
+.pl-ep.is-active .pl-ep-num { opacity: 1; color: #E50914; }
+.pl-ep.is-active > i { display: block; }
+
+/* ---- Main black stage ---- */
+.pl-main {
+    position: relative;
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    background: #000;
+}
+.pl-topbar {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.75rem 1rem;
+}
+.pl-title { flex: 1; min-width: 0; }
+.pl-title-main {
+    font-weight: 800;
+    font-size: 0.95rem;
+    color: #fff;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.pl-title-sub {
+    font-size: 0.75rem;
+    color: #a3a3a3;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.pl-title-sub:empty { display: none; }
+
+.pl-icon-btn {
+    width: 2.25rem;
+    height: 2.25rem;
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 9999px;
+    color: #fff;
+    background: rgba(255, 255, 255, 0.08);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    cursor: pointer;
+    transition: background 0.15s, border-color 0.15s;
+}
+.pl-icon-btn:hover { background: #E50914; border-color: #E50914; }
+
+/* 16:9 video letterboxed inside the black stage */
+.pl-stage {
+    position: relative;
+    flex: 1;
+    min-height: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    container-type: size;
+}
+.pl-stage iframe {
+    width: 100%;
+    height: 100%;
+    width: min(100cqw, calc(100cqh * 16 / 9));
+    height: min(100cqh, calc(100cqw * 9 / 16));
+    border: 0;
+    background: #000;
+}
+.pl-loading {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #000;
+    pointer-events: none;
+    transition: opacity 0.3s;
+}
+.pl-loading.is-hidden { opacity: 0; }
+.pl-spinner {
+    width: 2.5rem;
+    height: 2.5rem;
+    border-radius: 9999px;
+    border: 3px solid rgba(255, 255, 255, 0.15);
+    border-top-color: #E50914;
+    animation: pl-spin 0.8s linear infinite;
+}
+@keyframes pl-spin { to { transform: rotate(360deg); } }
+
+/* ---- Control bar (Previous / Episodes / Next) ---- */
+.pl-controls {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    padding: 0.75rem 1rem;
+    border-top: 1px solid rgba(255, 255, 255, 0.07);
+    background: #0a0a0a;
+}
+.pl-controls.hidden { display: none; }
+.pl-nav-btn {
+    display: flex;
+    align-items: center;
+    gap: 0.65rem;
+    min-width: 0;
+    max-width: 38%;
+    padding: 0.55rem 1rem;
+    border-radius: 0.6rem;
+    font-size: 0.8rem;
+    color: #fff;
+    background: rgba(255, 255, 255, 0.08);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    cursor: pointer;
+    transition: background 0.15s, opacity 0.15s;
+}
+.pl-nav-btn:hover:not(:disabled) { background: rgba(255, 255, 255, 0.18); }
+.pl-nav-btn.primary { background: #fff; color: #000; border-color: #fff; }
+.pl-nav-btn.primary:hover:not(:disabled) { background: #e5e5e5; }
+.pl-nav-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+.pl-nav-text { display: flex; flex-direction: column; min-width: 0; text-align: left; }
+.pl-nav-text.right { text-align: right; }
+.pl-nav-text b { font-weight: 700; }
+.pl-nav-text small {
+    font-size: 0.68rem;
+    opacity: 0.65;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.pl-nav-text small:empty { display: none; }
+
+.pl-episodes-btn {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.55rem 1rem;
+    border-radius: 9999px;
+    font-size: 0.8rem;
+    font-weight: 700;
+    color: #fff;
+    background: #E50914;
+    cursor: pointer;
+    transition: background 0.15s;
+}
+.pl-episodes-btn:hover { background: #b20710; }
+
+/* ---- Mobile: sidebar becomes a slide-over drawer ---- */
+.pl-backdrop { display: none; }
+@media (max-width: 767px) {
+    .pl-backdrop {
+        display: block;
+        position: absolute;
+        inset: 0;
+        z-index: 20;
+        background: rgba(0, 0, 0, 0.6);
+        transition: opacity 0.3s;
+    }
+    .pl-backdrop.is-hidden { opacity: 0; pointer-events: none; }
+    .pl-sidebar {
+        position: absolute;
+        top: 0; bottom: 0; left: 0;
+        z-index: 30;
+        width: min(86%, 20rem);
+    }
+    .pl-sidebar.is-collapsed { width: min(86%, 20rem); transform: translateX(-100%); }
+    .pl-sidebar-inner { width: 100%; }
+    .pl-nav-text small { display: none; }
+    .pl-nav-btn { padding: 0.55rem 0.8rem; }
+    .pl-episodes-btn span { display: none; }
+}
+
+/* ---- Always-visible prev/next in the top bar + bigger bottom bar ---- */
+.pl-top-nav { display: flex; gap: 0.5rem; }
+.pl-top-nav.hidden { display: none; }
+.pl-icon-primary { background: #fff; color: #000; border-color: #fff; }
+.pl-icon-primary:hover { background: #E50914; color: #fff; }
+.pl-icon-btn:disabled { opacity: 0.3; cursor: not-allowed; pointer-events: none; }
+.pl-controls { padding: 0.9rem 1.25rem; background: #111; }
+.pl-nav-btn { padding: 0.8rem 1.4rem; font-size: 0.95rem; }
+.pl-nav-btn i { font-size: 1.1rem; }
+.pl-episodes-btn { padding: 0.8rem 1.4rem; font-size: 0.95rem; }
