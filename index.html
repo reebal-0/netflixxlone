@@ -200,44 +200,67 @@
         </div>
     </div>
 
-    <!-- Embedded Video Player Modal (Red Sidebar Layout matching your reference image) -->
-    <div id="video-player-modal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/95 backdrop-blur-lg opacity-0 pointer-events-none transition-opacity duration-300 p-0 md:p-4">
-        <div class="relative w-full h-full md:h-[85vh] md:max-w-7xl bg-black rounded-none md:rounded-xl overflow-hidden shadow-2xl border border-gray-800 flex flex-col md:flex-row">
-            
-            <!-- Red Episodes Sidebar -->
-            <div id="player-sidebar" class="w-full md:w-80 bg-netflixRed text-white flex flex-col flex-shrink-0 border-r border-red-800 transition-all duration-300">
-                <div class="p-4 flex items-center justify-between border-b border-red-700/50">
-                    <span class="font-black text-lg tracking-wide uppercase">episodes:</span>
-                    <button id="sidebar-collapse-btn" class="text-white hover:text-black transition cursor-pointer p-1">
-                        <i class="fa-solid fa-chevron-left text-lg"></i>
-                    </button>
-                </div>
-                <div class="p-3 border-b border-red-700/50 bg-black/10">
-                    <select id="player-season-select" class="w-full bg-black/40 text-white text-xs border border-red-600 rounded px-2 py-1.5 focus:outline-none">
-                        <option value="1">Season 1</option>
-                    </select>
-                </div>
-                <div id="player-sidebar-episodes-list" class="flex-grow overflow-y-auto p-3 space-y-2 text-xs">
-                    <!-- Populated dynamically -->
-                </div>
-            </div>
+    <!-- Video Player Modal: red episodes sidebar + black stage (matches reference image) -->
+    <div id="video-player-modal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/95 backdrop-blur-lg opacity-0 pointer-events-none transition-opacity duration-300 p-0 md:p-4" role="dialog" aria-modal="true" aria-label="Video player">
+        <div class="pl-shell">
 
-            <!-- Black Container for the Video Player -->
-            <div class="relative flex-grow bg-black flex flex-col h-full">
-                <!-- Top bar with title, Next/Prev buttons, and close button -->
-                <div class="absolute top-0 left-0 right-0 z-20 flex items-center justify-between p-4 bg-gradient-to-b from-black/90 to-transparent">
-                    <div id="player-title" class="text-white font-bold text-xs md:text-sm drop-shadow flex items-center space-x-3">
-                        <span>Now Playing</span>
+            <!-- Red Episodes Sidebar -->
+            <aside id="player-sidebar" class="pl-sidebar is-collapsed">
+                <div class="pl-sidebar-inner">
+                    <div class="pl-sidebar-head">
+                        <span>episodes:</span>
+                        <button id="sidebar-collapse-btn" type="button" aria-label="Hide episodes" title="Hide episodes (E)">
+                            <i class="fa-solid fa-chevron-left"></i>
+                        </button>
                     </div>
-                    <button id="player-close-btn" class="bg-black/60 hover:bg-netflixRed text-white w-9 h-9 rounded-full flex items-center justify-center transition border border-gray-700 cursor-pointer flex-shrink-0">
-                        <i class="fa-solid fa-xmark text-lg"></i>
+                    <div class="pl-season-wrap">
+                        <select id="player-season-select" aria-label="Season">
+                            <option value="1">Season 1</option>
+                        </select>
+                    </div>
+                    <div id="player-sidebar-episodes-list" class="pl-ep-list no-scrollbar"></div>
+                </div>
+            </aside>
+            <div id="player-sidebar-backdrop" class="pl-backdrop is-hidden"></div>
+
+            <!-- Black stage -->
+            <section class="pl-main">
+                <header class="pl-topbar">
+                    <button id="player-menu-btn" type="button" class="pl-icon-btn" aria-label="Show episodes" title="Episodes (E)">
+                        <i class="fa-solid fa-list"></i>
                     </button>
+                    <div class="pl-title">
+                        <div id="player-title" class="pl-title-main">Now Playing</div>
+                        <div id="player-subtitle" class="pl-title-sub"></div>
+                    </div>
+                    <div id="player-top-nav" class="pl-top-nav hidden">
+                        <button id="player-prev-top" type="button" class="pl-icon-btn" aria-label="Previous episode" title="Previous episode (P)"><i class="fa-solid fa-backward-step"></i></button>
+                        <button id="player-next-top" type="button" class="pl-icon-btn pl-icon-primary" aria-label="Next episode" title="Next episode (N)"><i class="fa-solid fa-forward-step"></i></button>
+                    </div>
+                    <button id="player-close-btn" type="button" class="pl-icon-btn" aria-label="Close player" title="Close (Esc)">
+                        <i class="fa-solid fa-xmark"></i>
+                    </button>
+                </header>
+
+                <div class="pl-stage">
+                    <iframe id="video-iframe" src="" allowfullscreen allow="autoplay; fullscreen; picture-in-picture"></iframe>
+                    <div id="player-loading" class="pl-loading is-hidden"><div class="pl-spinner"></div></div>
                 </div>
-                <!-- Embedded Iframe Player Area -->
-                <div class="flex-grow flex items-center justify-center p-0 md:p-8 h-full pt-16 md:pt-8">
-                    <iframe id="video-iframe" src="" class="w-full h-full md:w-[90%] md:h-[90%] border-0 rounded shadow-2xl bg-black" allowfullscreen></iframe>
-                </div>
-            </div>
+
+                <footer id="player-controls" class="pl-controls hidden">
+                    <button id="player-prev-btn" type="button" class="pl-nav-btn" title="Previous episode (P)">
+                        <i class="fa-solid fa-backward-step"></i>
+                        <span class="pl-nav-text"><b>Previous</b><small id="prev-label"></small></span>
+                    </button>
+                    <button id="player-episodes-btn" type="button" class="pl-episodes-btn" title="Episodes (E)">
+                        <i class="fa-solid fa-list"></i><span>Episodes</span>
+                    </button>
+                    <button id="player-next-btn" type="button" class="pl-nav-btn primary" title="Next episode (N)">
+                        <span class="pl-nav-text right"><b>Next</b><small id="next-label"></small></span>
+                        <i class="fa-solid fa-forward-step"></i>
+                    </button>
+                </footer>
+            </section>
 
         </div>
     </div>
