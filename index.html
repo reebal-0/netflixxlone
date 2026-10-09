@@ -43,6 +43,16 @@
             </div>
         </div>
         <div class="flex items-center space-x-3 md:space-x-5">
+            <!-- My Lists Button -->
+            <button id="lists-nav-btn" type="button" title="My Lists" class="text-gray-300 hover:text-white bg-black/40 hover:bg-black/70 border border-gray-700 px-3 py-1.5 rounded text-xs md:text-sm flex items-center space-x-1.5 transition">
+                <i class="fa-solid fa-list-ul text-netflixRed"></i>
+                <span class="hidden sm:inline">My Lists</span>
+            </button>
+            <!-- Server Button -->
+            <button id="server-btn" type="button" title="Choose video server" class="text-gray-300 hover:text-white bg-black/40 hover:bg-black/70 border border-gray-700 px-3 py-1.5 rounded text-xs md:text-sm flex items-center space-x-1.5 transition">
+                <i class="fa-solid fa-server text-netflixRed"></i>
+                <span class="hidden sm:inline">Server</span>
+            </button>
             <!-- API Key Settings Button -->
             <button id="api-key-modal-btn" title="Configure TMDb/IMDb API Key" class="text-gray-300 hover:text-white bg-black/40 hover:bg-black/70 border border-gray-700 px-3 py-1.5 rounded text-xs md:text-sm flex items-center space-x-1.5 transition">
                 <i class="fa-solid fa-key text-yellow-400"></i>
@@ -56,10 +66,11 @@
                 <input type="text" id="search-input" placeholder="Search movies, TV shows, genres..." 
                     class="w-44 sm:w-64 bg-black/80 border border-gray-600 text-sm text-white rounded px-3 py-1.5 transition-all duration-300 focus:w-72 sm:focus:w-80 focus:border-netflixRed focus:outline-none">
             </div>
-            <div class="hidden sm:flex items-center space-x-3 cursor-pointer group">
-                <img src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=150" alt="Profile" class="w-8 h-8 rounded object-cover border border-gray-600">
+            <button id="profile-btn" type="button" class="flex items-center space-x-2 group focus:outline-none" aria-label="Account">
+                <span id="nav-avatar" class="nav-avatar"><i class="fa-solid fa-user text-gray-300 text-sm"></i></span>
+                <span id="nav-username" class="hidden md:inline text-sm font-medium text-gray-200 max-w-[8rem] truncate">Sign in</span>
                 <i class="fa-solid fa-caret-down text-xs text-gray-400 group-hover:text-white transition"></i>
-            </div>
+            </button>
         </div>
     </nav>
 
@@ -108,6 +119,7 @@
                     <i class="fa-solid fa-circle-info"></i>
                     <span>More Info</span>
                 </button>
+                <button id="hero-list-btn" type="button" class="hero-list-btn" title="Add to a list" aria-label="Add to a list"><i class="fa-solid fa-plus"></i></button>
             </div>
         </div>
     </header>
@@ -166,9 +178,9 @@
                                 <i class="fa-solid fa-play"></i>
                                 <span id="modal-play-btn-text">Play</span>
                             </button>
-                            <button class="bg-gray-800 hover:bg-gray-700 text-white font-semibold px-4 py-3 rounded flex items-center space-x-2 transition border border-gray-700 cursor-pointer">
-                                <i class="fa-solid fa-plus"></i>
-                                <span>My List</span>
+                            <button id="modal-list-btn" type="button" class="bg-gray-800 hover:bg-gray-700 text-white font-semibold px-4 py-3 rounded flex items-center space-x-2 transition border border-gray-700 cursor-pointer">
+                                <i id="modal-list-btn-icon" class="fa-solid fa-plus"></i>
+                                <span id="modal-list-btn-text">Add to List</span>
                             </button>
                         </div>
                     </div>
@@ -233,6 +245,9 @@
                         <div id="player-title" class="pl-title-main">Now Playing</div>
                         <div id="player-subtitle" class="pl-title-sub"></div>
                     </div>
+                    <button id="player-server-btn" type="button" class="pl-icon-btn" aria-label="Switch server" title="Not loading? Switch server">
+                        <i class="fa-solid fa-server"></i>
+                    </button>
                     <div id="player-top-nav" class="pl-top-nav hidden">
                         <button id="player-prev-top" type="button" class="pl-icon-btn" aria-label="Previous episode" title="Previous episode (P)"><i class="fa-solid fa-backward-step"></i></button>
                         <button id="player-next-top" type="button" class="pl-icon-btn pl-icon-primary" aria-label="Next episode" title="Next episode (N)"><i class="fa-solid fa-forward-step"></i></button>
@@ -262,6 +277,179 @@
                 </footer>
             </section>
 
+        </div>
+    </div>
+
+    <!-- ============ Server picker ============ -->
+    <div id="server-modal" class="fixed inset-0 z-[85] flex items-center justify-center bg-black/80 backdrop-blur-md opacity-0 pointer-events-none transition-opacity duration-300 p-4" role="dialog" aria-modal="true" aria-label="Video server">
+        <div class="bg-[#181818] w-full max-w-md rounded-xl border border-gray-800 shadow-2xl overflow-hidden">
+            <div class="flex items-center justify-between px-6 pt-5">
+                <h3 class="text-lg font-bold text-white flex items-center"><i class="fa-solid fa-server text-netflixRed mr-3"></i> Video server</h3>
+                <button id="server-close-btn" type="button" class="text-gray-400 hover:text-white" aria-label="Close"><i class="fa-solid fa-xmark text-lg"></i></button>
+            </div>
+            <div class="p-6 space-y-5">
+                <p class="text-sm text-gray-400">Choose where videos are loaded from. If something won't play, try another server — the current video reloads instantly.</p>
+                <div id="server-list" class="space-y-2 max-h-64 overflow-y-auto no-scrollbar"></div>
+
+                <label class="flex items-start gap-3 cursor-pointer bg-white/5 border border-gray-700 rounded-lg px-4 py-3">
+                    <input id="block-popups-toggle" type="checkbox" class="mt-1 w-4 h-4 accent-red-600" checked>
+                    <span>
+                        <span class="block text-sm font-semibold text-white"><i class="fa-solid fa-shield-halved text-netflixRed mr-1.5"></i>Block pop-ups &amp; redirects</span>
+                        <span class="block text-xs text-gray-400 mt-0.5 leading-relaxed">Stops a server from opening new tabs or sending you to another site. If a server says it detects a sandbox or won't play, turn this off.</span>
+                    </span>
+                </label>
+
+                <div class="border-t border-gray-800 pt-4 space-y-2">
+                    <span class="block text-xs font-semibold text-gray-400 uppercase tracking-wider">Add your own server</span>
+                    <input id="server-name-input" type="text" maxlength="24" placeholder="Name (optional)" class="auth-input !py-2">
+                    <div class="flex items-center gap-2">
+                        <input id="server-url-input" type="text" placeholder="https://your-domain.com" autocomplete="off" spellcheck="false" class="auth-input flex-1 !py-2">
+                        <button id="server-add-btn" type="button" class="bg-netflixRed hover:bg-red-700 text-white text-sm font-bold px-4 py-2 rounded transition">Add</button>
+                    </div>
+                    <p id="server-error" class="hidden text-xs text-red-400"></p>
+                    <p class="text-[11px] text-gray-500 leading-relaxed">The server must accept links like <code class="font-mono">/movie/{id}</code> and <code class="font-mono">/tv/{id}/{season}/{episode}</code> (TMDb ids).</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ============ Sign in / Sign up modal ============ -->
+    <div id="auth-modal" class="fixed inset-0 z-[70] flex items-center justify-center bg-black/80 backdrop-blur-md opacity-0 pointer-events-none transition-opacity duration-300 p-4" role="dialog" aria-modal="true" aria-label="Sign in or sign up">
+        <div class="bg-[#181818] w-full max-w-md rounded-xl border border-gray-800 shadow-2xl overflow-hidden">
+            <div class="flex items-center justify-between px-6 pt-5">
+                <div id="auth-tabs" class="auth-tabs">
+                    <button type="button" data-mode="signin" class="is-active">Sign in</button>
+                    <button type="button" data-mode="signup">Sign up</button>
+                </div>
+                <button id="auth-close-btn" type="button" class="text-gray-400 hover:text-white" aria-label="Close"><i class="fa-solid fa-xmark text-lg"></i></button>
+            </div>
+
+            <form id="auth-form" class="p-6 space-y-4" novalidate>
+                <p id="auth-context" class="hidden text-sm text-gray-300 bg-white/5 border border-gray-700 rounded-lg px-3 py-2"></p>
+                <div id="auth-config-warning" class="hidden text-xs text-yellow-300 bg-yellow-500/10 border border-yellow-500/30 rounded-lg px-3 py-2 leading-relaxed">
+                    <i class="fa-solid fa-triangle-exclamation mr-1"></i>
+                    Firebase isn't configured yet, so accounts are off. Paste your config into <code class="font-mono">app.js</code> to enable sign in &amp; sign up. Guest mode still works (lists are saved in this browser).
+                </div>
+
+                <div id="auth-username-wrap" class="hidden space-y-1.5">
+                    <label for="auth-username" class="block text-xs font-semibold text-gray-400 uppercase tracking-wider">Username</label>
+                    <input id="auth-username" type="text" maxlength="24" autocomplete="username" placeholder="How should we call you?" class="auth-input">
+                </div>
+                <div class="space-y-1.5">
+                    <label for="auth-email" class="block text-xs font-semibold text-gray-400 uppercase tracking-wider">Email</label>
+                    <input id="auth-email" type="email" autocomplete="email" placeholder="you@example.com" class="auth-input">
+                </div>
+                <div class="space-y-1.5">
+                    <label for="auth-password" class="block text-xs font-semibold text-gray-400 uppercase tracking-wider">Password</label>
+                    <input id="auth-password" type="password" autocomplete="current-password" placeholder="At least 6 characters" class="auth-input">
+                </div>
+
+                <p id="auth-error" class="hidden text-sm text-red-400"></p>
+
+                <button id="auth-submit" type="submit" class="w-full bg-netflixRed hover:bg-red-700 text-white font-bold py-3 rounded transition">Sign in</button>
+
+                <div class="flex items-center space-x-3 text-xs text-gray-500">
+                    <span class="flex-1 h-px bg-gray-800"></span><span>or</span><span class="flex-1 h-px bg-gray-800"></span>
+                </div>
+
+                <button id="auth-google-btn" type="button" class="w-full bg-white hover:bg-gray-200 text-gray-900 font-semibold py-3 rounded transition flex items-center justify-center space-x-3">
+                    <svg width="18" height="18" viewBox="0 0 48 48" aria-hidden="true"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/><path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/></svg>
+                    <span>Continue with Google</span>
+                </button>
+
+                <button id="auth-guest-btn" type="button" class="w-full bg-gray-800 hover:bg-gray-700 text-white font-semibold py-3 rounded transition border border-gray-700 flex items-center justify-center space-x-2">
+                    <i class="fa-solid fa-user-secret"></i><span>Continue as guest</span>
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <!-- ============ Profile modal ============ -->
+    <div id="profile-modal" class="fixed inset-0 z-[70] flex items-center justify-center bg-black/80 backdrop-blur-md opacity-0 pointer-events-none transition-opacity duration-300 p-4" role="dialog" aria-modal="true" aria-label="Your profile">
+        <div class="bg-[#181818] w-full max-w-lg rounded-xl border border-gray-800 shadow-2xl overflow-hidden">
+            <div class="flex items-center justify-between px-6 pt-5">
+                <h3 class="text-lg font-bold text-white">Your profile</h3>
+                <button id="profile-close-btn" type="button" class="text-gray-400 hover:text-white" aria-label="Close"><i class="fa-solid fa-xmark text-lg"></i></button>
+            </div>
+
+            <div class="p-6 space-y-6">
+                <div class="flex items-center gap-4">
+                    <div id="profile-avatar-preview" class="profile-avatar-preview"></div>
+                    <div class="flex-1 min-w-0 space-y-1.5">
+                        <label for="profile-name" class="block text-xs font-semibold text-gray-400 uppercase tracking-wider">Display name</label>
+                        <input id="profile-name" type="text" maxlength="24" class="auth-input" placeholder="Display name">
+                        <p id="profile-email" class="text-xs text-gray-500 truncate"></p>
+                    </div>
+                </div>
+
+                <div class="space-y-2">
+                    <span class="block text-xs font-semibold text-gray-400 uppercase tracking-wider">Pick your pixel buddy</span>
+                    <div id="avatar-grid" class="grid grid-cols-3 sm:grid-cols-5 gap-3"></div>
+                </div>
+
+                <div id="profile-guest-note" class="hidden text-sm text-gray-300 bg-white/5 border border-gray-700 rounded-lg px-4 py-3 flex items-center justify-between gap-3">
+                    <span>You're browsing as a guest. Create an account to keep your lists.</span>
+                    <button id="profile-upgrade-btn" type="button" class="flex-shrink-0 bg-netflixRed hover:bg-red-700 text-white text-xs font-bold px-3 py-2 rounded transition">Sign up</button>
+                </div>
+
+                <p id="profile-error" class="hidden text-sm text-red-400"></p>
+
+                <div class="flex items-center justify-between pt-1">
+                    <button id="profile-signout-btn" type="button" class="text-sm text-gray-400 hover:text-white transition flex items-center space-x-2">
+                        <i class="fa-solid fa-right-from-bracket"></i><span>Sign out</span>
+                    </button>
+                    <button id="profile-save-btn" type="button" class="bg-netflixRed hover:bg-red-700 text-white font-bold px-6 py-2.5 rounded transition">Save</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ============ Add-to-list picker ============ -->
+    <div id="list-picker-modal" class="fixed inset-0 z-[80] flex items-center justify-center bg-black/70 backdrop-blur-sm opacity-0 pointer-events-none transition-opacity duration-200 p-4" role="dialog" aria-modal="true" aria-label="Save to list">
+        <div class="bg-[#181818] w-full max-w-sm rounded-xl border border-gray-800 shadow-2xl overflow-hidden">
+            <div class="flex items-start justify-between px-5 pt-4 pb-2 gap-3">
+                <div class="min-w-0">
+                    <h3 class="text-base font-bold text-white">Save to…</h3>
+                    <p id="picker-media-title" class="text-xs text-gray-400 truncate"></p>
+                </div>
+                <button id="picker-close-btn" type="button" class="text-gray-400 hover:text-white" aria-label="Close"><i class="fa-solid fa-xmark text-lg"></i></button>
+            </div>
+            <div id="list-picker-rows" class="max-h-64 overflow-y-auto px-2 pb-2 no-scrollbar"></div>
+            <div class="border-t border-gray-800 p-4 flex items-center gap-2">
+                <input id="new-list-name-input" type="text" maxlength="30" placeholder="New list name" class="auth-input flex-1 !py-2">
+                <button id="create-list-btn" type="button" class="bg-netflixRed hover:bg-red-700 text-white text-sm font-bold px-4 py-2 rounded transition whitespace-nowrap">Create</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ============ My Lists page ============ -->
+    <div id="lists-modal" class="fixed inset-0 z-[60] bg-[#141414] overflow-y-auto opacity-0 pointer-events-none transition-opacity duration-300" role="dialog" aria-modal="true" aria-label="My lists">
+        <div class="max-w-7xl mx-auto px-4 md:px-12 py-6 md:py-8">
+            <div class="flex items-center justify-between mb-6">
+                <h2 class="text-2xl md:text-3xl font-black text-white flex items-center"><i class="fa-solid fa-list-ul text-netflixRed mr-3"></i> My Lists</h2>
+                <button id="lists-close-btn" type="button" class="bg-gray-800 hover:bg-netflixRed text-white w-10 h-10 rounded-full flex items-center justify-center transition border border-gray-700" aria-label="Close lists"><i class="fa-solid fa-xmark text-lg"></i></button>
+            </div>
+
+            <div id="lists-tabs" class="flex flex-wrap items-center gap-2 mb-6"></div>
+
+            <div id="lists-name-form" class="hidden mb-6 flex items-center gap-2 max-w-md">
+                <input id="lists-name-input" type="text" maxlength="30" placeholder="List name" class="auth-input flex-1 !py-2">
+                <button id="lists-name-submit" type="button" class="bg-netflixRed hover:bg-red-700 text-white text-sm font-bold px-4 py-2 rounded transition">Create</button>
+                <button id="lists-name-cancel" type="button" class="bg-gray-800 hover:bg-gray-700 text-gray-300 text-sm font-semibold px-4 py-2 rounded transition">Cancel</button>
+            </div>
+
+            <div class="flex flex-wrap items-end justify-between gap-3 mb-5">
+                <div>
+                    <h3 id="lists-active-name" class="text-xl md:text-2xl font-bold text-white"></h3>
+                    <p id="lists-active-count" class="text-sm text-gray-400"></p>
+                </div>
+                <div class="flex items-center gap-2">
+                    <button id="lists-rename-btn" type="button" class="hidden bg-gray-800 hover:bg-gray-700 text-gray-200 text-xs font-semibold px-3 py-2 rounded transition flex items-center space-x-1.5"><i class="fa-solid fa-pen"></i><span>Rename</span></button>
+                    <button id="lists-delete-btn" type="button" class="hidden bg-gray-800 hover:bg-red-700 text-gray-200 text-xs font-semibold px-3 py-2 rounded transition flex items-center space-x-1.5"></button>
+                </div>
+            </div>
+
+            <div id="lists-grid" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4 md:gap-5"></div>
         </div>
     </div>
 
@@ -301,6 +489,11 @@
             </div>
         </div>
     </footer>
+
+    <!-- Firebase (Auth + Firestore) -->
+    <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
 
     <!-- Script Application Logic File -->
     <script src="app.js"></script>
