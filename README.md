@@ -2,7 +2,7 @@
 
 # 🎬 NetflixxClone
 
-**A Netflix-style streaming browser built with plain HTML, Tailwind and vanilla JavaScript.**
+**A Netflix clone built with plain HTML, Tailwind and vanilla JavaScript.**
 
 [![Live Demo](https://img.shields.io/badge/Live%20Demo-Open-E50914?style=for-the-badge&logo=github)](https://reebal-0.github.io/netflixxlone/)
 ![HTML5](https://img.shields.io/badge/HTML5-E34F26?style=for-the-badge&logo=html5&logoColor=white)
