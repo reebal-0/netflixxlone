@@ -4,7 +4,7 @@
 
 // --- CONFIGURATION ---
 const CONFIG = {
-    domain: 'https://vidstorm.to', // Replace with your domain when ready
+    domain: 'https://vaplayer.ru/embed', // Replace with your domain when ready
     publicDemoKey: '2993855ff9655e88d076d338f71295fc',
     tmdbBaseUrl: 'https://api.themoviedb.org/3',
     imageBaseUrl: 'https://image.tmdb.org/t/p/original',
@@ -519,7 +519,7 @@ function escapeHtml(str) {
 }
 
 function episodeUrl(tvId, season, episode) {
-    return `${CONFIG.domain}/tv/${tvId}/${season}/${episode}`;
+    return `${CONFIG.domain}/tv/${tvId}/${season}/${episode}?skin=netflix`;
 }
 
 // Fetch (and cache) the episode list of one season.
