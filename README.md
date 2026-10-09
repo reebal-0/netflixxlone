@@ -18,7 +18,7 @@
 
 ## ✨ Features
 
-- 🎞️ **Hero banner** with the featured title, rating and one-click play
+
 - 📚 **Category rows** (Trending, Movies, Series…) with hover-zoom cards
 - 🔎 **Live search** across movies and TV shows
 - 🕑 **Recently browsed** row that remembers what you looked at
@@ -70,7 +70,7 @@ netflixxlone/
 └── style.css    # Custom styles (cards, hero gradient, player UI)
 ```
 
-## 🛣️ Roadmap
+## 🛣️ Roadmap (comming soon)
 
 - [ ] Autoplay next episode
 - [ ] Resume where you left off
