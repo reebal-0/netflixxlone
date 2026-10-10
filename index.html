@@ -2,7 +2,11 @@
 <html lang="en" class="dark">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <meta name="theme-color" content="#141414">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <title>Netflix</title>
     <!-- Netflix Favicon -->
     <link rel="icon" type="image/png" href="https://a.favicon.im/netflix.com">
@@ -32,45 +36,39 @@
 <body class="bg-netflixDark text-white antialiased selection:bg-netflixRed selection:text-white">
 
     <!-- Navigation Bar -->
-    <nav id="navbar" class="fixed top-0 left-0 right-0 z-50 transition-all duration-300 bg-gradient-to-b from-black/90 via-black/50 to-transparent px-4 md:px-12 py-4 flex items-center justify-between">
-        <div class="flex items-center space-x-6 md:space-x-8">
-            <a href="#" onclick="resetHomeView(event)" class="text-netflixRed text-2xl md:text-3xl font-extrabold tracking-wider uppercase cursor-pointer">NETFLIX</a>
-            <div class="hidden md:flex items-center space-x-6 text-sm font-medium text-gray-300">
-                <a href="#" onclick="resetHomeView(event)" class="hover:text-white transition text-white">Home</a>
-                <a href="#series-row" class="hover:text-white transition">TV Shows</a>
-                <a href="#movies-row" class="hover:text-white transition">Movies</a>
-                <a href="#trending-row" class="hover:text-white transition">New & Popular</a>
+    <nav id="navbar" class="nf-nav">
+        <div class="nf-nav-left">
+            <a href="#" onclick="resetHomeView(event)" class="nav-logo" aria-label="Home">
+                <span class="logo-full">NETFLIX</span><span class="logo-n">N</span>
+            </a>
+            <span id="nav-title" class="nav-title">Home</span>
+            <div class="nf-links">
+                <a href="#" data-filter="all" class="is-active">Home</a>
+                <a href="#" data-filter="series">TV Shows</a>
+                <a href="#" data-filter="movie">Movies</a>
+                <a href="#" data-filter="popular">New &amp; Popular</a>
+                <button id="lists-nav-btn" type="button">My List</button>
             </div>
         </div>
-        <div class="flex items-center space-x-3 md:space-x-5">
-            <!-- My Lists Button -->
-            <button id="lists-nav-btn" type="button" title="My Lists" class="text-gray-300 hover:text-white bg-black/40 hover:bg-black/70 border border-gray-700 px-3 py-1.5 rounded text-xs md:text-sm flex items-center space-x-1.5 transition">
-                <i class="fa-solid fa-list-ul text-netflixRed"></i>
-                <span class="hidden sm:inline">My Lists</span>
-            </button>
-            <!-- Server Button -->
-            <button id="server-btn" type="button" title="Choose video server" class="text-gray-300 hover:text-white bg-black/40 hover:bg-black/70 border border-gray-700 px-3 py-1.5 rounded text-xs md:text-sm flex items-center space-x-1.5 transition">
-                <i class="fa-solid fa-server text-netflixRed"></i>
-                <span class="hidden sm:inline">Server</span>
-            </button>
-            <!-- API Key Settings Button -->
-            <button id="api-key-modal-btn" title="Configure TMDb/IMDb API Key" class="text-gray-300 hover:text-white bg-black/40 hover:bg-black/70 border border-gray-700 px-3 py-1.5 rounded text-xs md:text-sm flex items-center space-x-1.5 transition">
-                <i class="fa-solid fa-key text-yellow-400"></i>
-                <span id="api-key-status-text" class="hidden sm:inline">API Config</span>
-            </button>
-            <!-- Search Bar -->
-            <div class="relative flex items-center">
-                <button id="search-icon-btn" class="text-white hover:text-netflixRed transition p-2 focus:outline-none">
-                    <i class="fa-solid fa-search text-lg"></i>
-                </button>
-                <input type="text" id="search-input" placeholder="Search movies, TV shows, genres..." 
-                    class="w-44 sm:w-64 bg-black/80 border border-gray-600 text-sm text-white rounded px-3 py-1.5 transition-all duration-300 focus:w-72 sm:focus:w-80 focus:border-netflixRed focus:outline-none">
+        <div class="nf-nav-right nav-right">
+            <div class="search-wrap">
+                <button id="search-icon-btn" type="button" aria-label="Search"><i class="fa-solid fa-magnifying-glass"></i></button>
+                <input type="text" id="search-input" placeholder="Titles, genres" autocomplete="off">
             </div>
-            <button id="profile-btn" type="button" class="flex items-center space-x-2 group focus:outline-none" aria-label="Account">
+            <button id="search-cancel-btn" type="button" class="search-cancel">Cancel</button>
+            <button id="server-btn" type="button" class="nf-icon-btn" title="Choose video server" aria-label="Video server"><i class="fa-solid fa-server"></i></button>
+            <button id="api-key-modal-btn" type="button" class="nf-icon-btn" title="Configure TMDb API key" aria-label="API key"><i class="fa-solid fa-key"></i><span id="api-key-status-text" class="sr-only">API Config</span></button>
+            <button id="profile-btn" type="button" class="nf-profile group focus:outline-none" aria-label="Account">
                 <span id="nav-avatar" class="nav-avatar"><i class="fa-solid fa-user text-gray-300 text-sm"></i></span>
-                <span id="nav-username" class="hidden md:inline text-sm font-medium text-gray-200 max-w-[8rem] truncate">Sign in</span>
-                <i class="fa-solid fa-caret-down text-xs text-gray-400 group-hover:text-white transition"></i>
+                <span id="nav-username" class="hidden">Sign in</span>
+                <i class="fa-solid fa-caret-down text-xs text-gray-300 group-hover:text-white transition"></i>
             </button>
+        </div>
+        <div id="nav-chips" class="nf-chips">
+            <button type="button" class="chip-clear" data-filter="all" aria-label="Clear filter"><i class="fa-solid fa-xmark"></i></button>
+            <button type="button" class="chip" data-filter="series">TV Shows</button>
+            <button type="button" class="chip" data-filter="movie">Movies</button>
+            <button type="button" class="chip" data-filter="popular">New &amp; Hot</button>
         </div>
     </nav>
 
@@ -95,51 +93,47 @@
         </div>
     </div>
 
-    <!-- Hero Banner -->
-    <header id="hero-banner" class="relative w-full h-[85vh] md:h-[90vh] flex items-end pb-20 px-4 md:px-12 bg-cover bg-center">
-        <div class="absolute inset-0 hero-gradient"></div>
-        <div id="hero-content" class="relative z-10 max-w-2xl space-y-4">
-            <div class="flex items-center space-x-3">
-                <span class="bg-netflixRed text-white text-xs font-bold px-2.5 py-1 rounded tracking-widest uppercase">NETFLIX ORIGINAL</span>
-                <span class="flex items-center text-yellow-400 font-bold text-sm bg-black/50 px-2 py-0.5 rounded border border-yellow-500/30">
-                    <i class="fa-solid fa-star mr-1"></i> IMDb <span id="hero-rating">9.3</span>
-                </span>
-                <span id="hero-year" class="text-gray-300 text-sm font-semibold">2024</span>
+    <!-- Hero Billboard -->
+    <header id="hero-banner" class="hero">
+        <div id="hero-backdrop" class="hero-backdrop"></div>
+        <div id="hero-bgblur" class="hero-bgblur"></div>
+        <div class="hero-vignette"></div>
+        <div class="hero-card"><img id="hero-poster" alt=""><div class="hero-card-fade"></div></div>
+        <div id="hero-content" class="hero-content">
+            <div class="hero-kind"><span class="hero-n">N</span><span id="hero-kind-text">SERIES</span></div>
+            <h1 id="hero-title" class="hero-title">Arcane</h1>
+            <p id="hero-tags" class="hero-tags"></p>
+            <div class="hero-meta">
+                <span id="hero-match" class="hero-match">98% Match</span>
+                <span id="hero-year">2024</span>
+                <span class="hero-hd">HD</span>
+                <span class="hero-rating-pill"><i class="fa-solid fa-star"></i> IMDb <span id="hero-rating">9.3</span></span>
             </div>
-            <h1 id="hero-title" class="text-4xl md:text-6xl font-black tracking-tight text-white drop-shadow-md">Arcane</h1>
-            <p id="hero-desc" class="text-gray-300 text-sm md:text-base line-clamp-3 leading-relaxed drop-shadow">
-                Set in the utopian region of Piltover and the oppressed underground of Zaun, the story follows the origins of two iconic League champions-and the power that will tear them apart.
-            </p>
-            <div class="flex items-center space-x-4 pt-2">
-                <button id="hero-play-btn" class="bg-white text-black hover:bg-white/80 transition font-bold px-6 py-3 rounded flex items-center space-x-2 text-sm md:text-base shadow-lg cursor-pointer">
-                    <i class="fa-solid fa-play"></i>
-                    <span>Play</span>
-                </button>
-                <button id="hero-info-btn" class="bg-gray-600/70 hover:bg-gray-600/50 backdrop-blur text-white font-semibold px-6 py-3 rounded flex items-center space-x-2 text-sm md:text-base transition border border-gray-500/40 cursor-pointer">
-                    <i class="fa-solid fa-circle-info"></i>
-                    <span>More Info</span>
-                </button>
-                <button id="hero-list-btn" type="button" class="hero-list-btn" title="Add to a list" aria-label="Add to a list"><i class="fa-solid fa-plus"></i></button>
+            <p id="hero-desc" class="hero-desc"></p>
+            <div class="hero-actions">
+                <button id="hero-play-btn" type="button" class="hero-btn hero-btn-play"><i class="fa-solid fa-play"></i><span id="hero-play-text">Play</span></button>
+                <button id="hero-info-btn" type="button" class="hero-btn hero-btn-info"><i class="fa-solid fa-circle-info"></i><span>More Info</span></button>
+                <button id="hero-list-btn" type="button" class="hero-btn hero-btn-list" title="Add to a list" aria-label="Add to a list"><i class="fa-solid fa-plus"></i><span class="hero-list-label">My List</span></button>
             </div>
         </div>
     </header>
 
     <!-- Main Content Container with space-y-20 distance separating hero buttons and recently browsed -->
-    <main class="relative z-20 pb-24 -mt-20 md:-mt-32 space-y-20">
+    <main class="nf-main">
         
         <!-- Search Results Section -->
-        <section id="search-results-section" class="px-4 md:px-12 pt-56 hidden">
+        <section id="search-results-section" class="px-[4%] hidden">
             <div class="flex items-center justify-between mb-6">
                 <h2 id="search-results-title" class="text-2xl md:text-3xl font-bold text-white">Search Results</h2>
                 <button onclick="clearSearch()" class="text-xs text-gray-400 hover:text-white bg-gray-800 px-3 py-1.5 rounded transition">Clear Search</button>
             </div>
-            <div id="search-results-grid" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4 md:gap-6">
+            <div id="search-results-grid" class="nf-grid">
                 <!-- Populated by JS -->
             </div>
         </section>
 
         <!-- Categories Rows Container -->
-        <div id="categories-container" class="space-y-10">
+        <div id="categories-container">
             <!-- Dynamically populated rows -->
         </div>
     </main>
@@ -173,7 +167,7 @@
                         <p id="modal-synopsis" class="text-gray-300 text-sm md:text-base leading-relaxed">
                             Synopsis...
                         </p>
-                        <div class="flex items-center space-x-4 pt-2">
+                        <div class="flex flex-wrap items-center gap-3 pt-2">
                             <button id="modal-main-play-btn" class="bg-netflixRed hover:bg-red-700 text-white font-bold px-6 py-3 rounded flex items-center space-x-2 transition shadow-lg cursor-pointer">
                                 <i class="fa-solid fa-play"></i>
                                 <span id="modal-play-btn-text">Play</span>
@@ -181,6 +175,10 @@
                             <button id="modal-list-btn" type="button" class="bg-gray-800 hover:bg-gray-700 text-white font-semibold px-4 py-3 rounded flex items-center space-x-2 transition border border-gray-700 cursor-pointer">
                                 <i id="modal-list-btn-icon" class="fa-solid fa-plus"></i>
                                 <span id="modal-list-btn-text">Add to List</span>
+                            </button>
+                            <button id="modal-watched-btn" type="button" class="watched-btn bg-gray-800 hover:bg-gray-700 text-white font-semibold px-4 py-3 rounded flex items-center space-x-2 transition border border-gray-700 cursor-pointer">
+                                <i class="fa-solid fa-check"></i>
+                                <span id="modal-watched-btn-text">Mark as watched</span>
                             </button>
                         </div>
                     </div>
@@ -245,6 +243,9 @@
                         <div id="player-title" class="pl-title-main">Now Playing</div>
                         <div id="player-subtitle" class="pl-title-sub"></div>
                     </div>
+                    <button id="player-autoplay-btn" type="button" class="pl-autoplay is-on" title="Autoplay next episode">
+                        <i class="fa-solid fa-forward"></i><span>Autoplay</span><b class="pl-switch"><i></i></b>
+                    </button>
                     <button id="player-server-btn" type="button" class="pl-icon-btn" aria-label="Switch server" title="Not loading? Switch server">
                         <i class="fa-solid fa-server"></i>
                     </button>
@@ -260,6 +261,13 @@
                 <div class="pl-stage">
                     <iframe id="video-iframe" src="" allowfullscreen allow="autoplay; fullscreen; picture-in-picture"></iframe>
                     <div id="player-loading" class="pl-loading is-hidden"><div class="pl-spinner"></div></div>
+                    <div id="up-next" class="up-next hidden">
+                        <div class="up-next-info"><small id="up-next-label">Up next</small><b id="up-next-title"></b></div>
+                        <div class="up-next-actions">
+                            <button id="up-next-play" type="button" class="up-next-play"><i class="fa-solid fa-play"></i> <span id="up-next-play-text">Play now</span></button>
+                            <button id="up-next-cancel" type="button" class="up-next-cancel">Cancel</button>
+                        </div>
+                    </div>
                 </div>
 
                 <footer id="player-controls" class="pl-controls hidden">
@@ -454,7 +462,7 @@
     </div>
 
     <!-- Footer -->
-    <footer class="bg-[#141414] text-gray-500 py-12 px-4 md:px-12 border-t border-gray-900 mt-12 text-sm">
+    <footer class="nf-footer bg-[#141414] text-gray-500 py-12 px-4 md:px-12 border-t border-gray-900 mt-12 text-sm">
         <div class="max-w-6xl mx-auto space-y-6">
             <div class="flex space-x-6 text-lg text-gray-400">
                 <a href="#" class="hover:text-white transition"><i class="fa-brands fa-facebook-f"></i></a>
@@ -489,6 +497,14 @@
             </div>
         </div>
     </footer>
+
+    <!-- Phone bottom tab bar -->
+    <nav id="bottom-nav" class="bottom-nav" aria-label="Main">
+        <button type="button" data-nav="home" class="is-active"><i class="fa-solid fa-house"></i><span>Home</span></button>
+        <button type="button" data-nav="search"><i class="fa-solid fa-magnifying-glass"></i><span>Search</span></button>
+        <button type="button" data-nav="lists"><i class="fa-solid fa-bookmark"></i><span>My List</span></button>
+        <button type="button" data-nav="profile"><span id="tab-avatar" class="tab-avatar"><i class="fa-solid fa-user"></i></span><span>Profile</span></button>
+    </nav>
 
     <!-- Firebase (Auth + Firestore) -->
     <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
