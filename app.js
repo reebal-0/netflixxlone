@@ -71,12 +71,12 @@ document.addEventListener('DOMContentLoaded', async () => {
     catalog = JSON.parse(JSON.stringify(fallbackCatalog));
     
     initApiKeyModal();
-    initNavbarEffect();
     initSearch();
     initModal();
     initVideoPlayerModal();
     initAccounts();
     initServers();
+    initUI();
 
     populateMediaMap(catalog);
     renderHero();
@@ -110,17 +110,20 @@ function updateRecentlyBrowsedRow() {
 
 async function loadMasterCatalog() {
     try {
-        const [trendingRes, topMoviesRes, popularTvRes, actionRes] = await Promise.all([
+        const [trendingRes, topMoviesRes, popularTvRes, actionRes, weekRes] = await Promise.all([
             fetch(`${CONFIG.tmdbBaseUrl}/trending/all/day?api_key=${userApiKey}`),
             fetch(`${CONFIG.tmdbBaseUrl}/movie/top_rated?api_key=${userApiKey}`),
             fetch(`${CONFIG.tmdbBaseUrl}/tv/popular?api_key=${userApiKey}`),
-            fetch(`${CONFIG.tmdbBaseUrl}/discover/movie?api_key=${userApiKey}&with_genres=28`)
+            fetch(`${CONFIG.tmdbBaseUrl}/discover/movie?api_key=${userApiKey}&with_genres=28`),
+            fetch(`${CONFIG.tmdbBaseUrl}/trending/all/week?api_key=${userApiKey}`).catch(() => null)
         ]);
 
         const trendingData = await trendingRes.json();
         const topMoviesData = await topMoviesRes.json();
         const popularTvData = await popularTvRes.json();
         const actionData = await actionRes.json();
+        let weekData = {};
+        try { weekData = weekRes ? await weekRes.json() : {}; } catch (e) { weekData = {}; }
 
         const newCatalog = {};
         if (recentlyBrowsed.length > 0) {
@@ -130,6 +133,7 @@ async function loadMasterCatalog() {
         newCatalog["Blockbuster Movies"] = processResults(topMoviesData.results || [], 'movie');
         newCatalog["Top Rated TV Series"] = processResults(popularTvData.results || [], 'series');
         newCatalog["Action Thrillers"] = processResults(actionData.results || [], 'movie');
+        newCatalog[TOP10_KEY] = processResults(weekData.results || []).slice(0, 10);
 
         if (newCatalog["Trending Now"].length > 0) {
             catalog = newCatalog;
@@ -160,8 +164,8 @@ function processResults(results, forcedType = null) {
             rating,
             year,
             duration: type === 'series' ? 'Series' : '2h 0m',
-            genre: type === 'series' ? 'Series' : 'Blockbuster',
-            genres: [type.toUpperCase()],
+            genre: genreNames(item.genre_ids)[0] || (type === 'series' ? 'Series' : 'Blockbuster'),
+            genres: genreNames(item.genre_ids).length ? genreNames(item.genre_ids) : [type === 'series' ? 'Series' : 'Movie'],
             synopsis,
             cast: 'Starring ensemble cast',
             banner,
@@ -169,103 +173,6 @@ function processResults(results, forcedType = null) {
             seasonsCount: 1
         };
     });
-}
-
-function initNavbarEffect() {
-    const navbar = document.getElementById('navbar');
-    window.addEventListener('scroll', () => {
-        if (window.scrollY > 50) {
-            navbar.classList.add('bg-netflixDark', 'shadow-xl');
-            navbar.classList.remove('bg-gradient-to-b', 'from-black/90', 'via-black/50', 'to-transparent');
-        } else {
-            navbar.classList.remove('bg-netflixDark', 'shadow-xl');
-            navbar.classList.add('bg-gradient-to-b', 'from-black/90', 'via-black/50', 'to-transparent');
-        }
-    });
-}
-
-function renderHero() {
-    const list = catalog['Trending Now'] || catalog[Object.keys(catalog)[0]];
-    if (!list || list.length === 0) return;
-    const feat = list[0];
-
-    document.getElementById('hero-banner').style.backgroundImage = `url('${feat.banner}')`;
-    document.getElementById('hero-rating').textContent = feat.rating;
-    document.getElementById('hero-year').textContent = feat.year;
-    document.getElementById('hero-title').textContent = feat.title;
-    document.getElementById('hero-desc').textContent = feat.synopsis;
-
-    heroFeatId = feat.id;
-    document.getElementById('hero-list-btn').onclick = () => openListPicker(null, feat.id);
-    document.getElementById('hero-info-btn').onclick = () => openModal(feat.id);
-    document.getElementById('hero-play-btn').onclick = () => {
-        trackRecentlyBrowsed(feat);
-        if (feat.type === 'series') {
-            openModal(feat.id);
-        } else {
-            openVideoPlayer(movieUrl(feat.id), `${feat.title} (Movie)`, feat);
-        }
-    };
-    refreshListUI();
-}
-
-function addButtonHtml(id) {
-    return `<button type="button" class="list-add-btn" data-id="${id}" onclick="openListPicker(event, '${id}')" title="Add to a list"><i class="fa-solid fa-plus"></i></button>`;
-}
-
-function rowCardHtml(item) {
-    return `
-        <div onclick="openModal('${item.id}')" class="movie-card flex-shrink-0 w-44 md:w-56 bg-[#1f1f1f] rounded-md overflow-hidden cursor-pointer shadow-md group/card">
-            <div class="relative h-64 md:h-80 w-full overflow-hidden bg-gray-900">
-                <img src="${item.poster}" alt="${escapeHtml(item.title)}" class="w-full h-full object-cover transition duration-300 group-hover/card:scale-105" loading="lazy" onerror="this.src='https://placehold.co/400x600/181818/ffffff?text=No+Image'">
-                ${addButtonHtml(item.id)}
-                <div class="absolute top-2 right-2 bg-black/70 backdrop-blur px-2 py-0.5 rounded text-xs font-bold text-yellow-400 border border-yellow-500/30 flex items-center shadow">
-                    <i class="fa-solid fa-star text-[10px] mr-1"></i> IMDb ${item.rating}
-                </div>
-            </div>
-            <div class="p-3 space-y-1">
-                <h3 class="font-semibold text-sm text-white truncate">${escapeHtml(item.title)}</h3>
-                <div class="flex items-center justify-between text-xs text-gray-400">
-                    <span>${item.year}</span>
-                    <span class="border border-gray-600 px-1 rounded text-[10px] uppercase">${escapeHtml(item.genre || '')}</span>
-                </div>
-            </div>
-        </div>`;
-}
-
-function buildRow(cat, items) {
-    const rowDiv = document.createElement('div');
-    rowDiv.className = 'space-y-3 px-4 md:px-12';
-    if (cat.includes('TV')) rowDiv.id = 'series-row';
-    if (cat.includes('Movies')) rowDiv.id = 'movies-row';
-    if (cat.includes('Trending')) rowDiv.id = 'trending-row';
-
-    rowDiv.innerHTML = `
-        <h2 class="text-lg md:text-xl font-bold text-white hover:text-gray-300 transition cursor-pointer flex items-center group">
-            <span>${cat}</span>
-            <i class="fa-solid fa-angle-right ml-2 text-xs opacity-0 group-hover:opacity-100 transition transform group-hover:translate-x-1"></i>
-        </h2>
-        <div class="relative group">
-            <div class="flex space-x-4 overflow-x-auto no-scrollbar pb-6 pt-2 px-1">
-                ${items.map(rowCardHtml).join('')}
-            </div>
-        </div>
-    `;
-    return rowDiv;
-}
-
-function renderCategories() {
-    const container = document.getElementById('categories-container');
-    container.innerHTML = '';
-
-    Object.keys(catalog).forEach(cat => {
-        const items = catalog[cat];
-        if (!items || items.length === 0) return;
-        container.appendChild(buildRow(cat, items));
-    });
-
-    updateMyListRow();   // puts "My List" first when it has titles + sets the +/✓ buttons
-    refreshListUI();
 }
 
 function initSearch() {
@@ -288,6 +195,7 @@ function initSearch() {
         }
 
         heroBanner.style.display = 'none';
+        document.body.classList.add('is-searching');
         categoriesContainer.style.display = 'none';
         searchSection.classList.remove('hidden');
         searchTitle.textContent = `Search Results for "${query}"`;
@@ -354,38 +262,21 @@ function renderSearchResults(items) {
         return;
     }
 
-    grid.innerHTML = items.map(item => `
-        <div onclick="openModal('${item.id}')" class="movie-card bg-[#1f1f1f] rounded-md overflow-hidden cursor-pointer shadow-md">
-            <div class="relative h-64 sm:h-72 w-full bg-gray-900">
-                <img src="${item.poster}" alt="${item.title}" class="w-full h-full object-cover" loading="lazy" onerror="this.src='https://placehold.co/400x600/181818/ffffff?text=No+Image'">
-                ${addButtonHtml(item.id)}
-                <div class="absolute top-2 right-2 bg-black/70 px-2 py-0.5 rounded text-xs font-bold text-yellow-400 border border-yellow-500/30 flex items-center">
-                    <i class="fa-solid fa-star text-[10px] mr-1"></i> IMDb ${item.rating}
-                </div>
-            </div>
-            <div class="p-3 space-y-1">
-                <h3 class="font-semibold text-sm text-white truncate">${item.title}</h3>
-                <div class="flex items-center justify-between text-xs text-gray-400">
-                    <span>${item.year}</span>
-                    <span class="border border-gray-600 px-1 rounded text-[10px] uppercase">${item.genre}</span>
-                </div>
-            </div>
-        </div>
-    `).join('');
+    grid.innerHTML = items.map(cardHtml).join('');
     refreshListUI();
 }
 
 function clearSearch() {
     document.getElementById('search-input').value = '';
     document.getElementById('search-results-section').classList.add('hidden');
-    document.getElementById('hero-banner').style.display = 'flex';
+    document.getElementById('hero-banner').style.display = '';
+    document.body.classList.remove('is-searching');
     document.getElementById('categories-container').style.display = 'block';
 }
 
 function resetHomeView(e) {
     if (e) e.preventDefault();
-    clearSearch();
-    window.scrollTo({ top: 0, behavior: 'smooth' });
+    setHomeFilter('all');
 }
 
 function initModal() {
@@ -430,6 +321,7 @@ async function openModal(id) {
                 } else if (detail.runtime) {
                     item.duration = `${Math.floor(detail.runtime / 60)}h ${detail.runtime % 60}m`;
                 }
+                if (detail.genres && detail.genres.length) { item.genres = detail.genres.map(g => g.name); item.genre = item.genres[0]; }
                 if (credits.cast) item.cast = credits.cast.slice(0, 4).map(c => c.name).join(', ');
             }
         } catch (e) {
@@ -451,6 +343,7 @@ async function openModal(id) {
     document.getElementById('modal-genres-list').textContent = (item.genres || []).join(', ');
     document.getElementById('modal-list-btn').onclick = () => openListPicker(null, item.id);
     updateModalListBtn();
+    updateModalWatchedBtn();
 
     const epSection = document.getElementById('modal-episodes-section');
     const mainPlayBtn = document.getElementById('modal-main-play-btn');
@@ -458,18 +351,13 @@ async function openModal(id) {
 
     if (item.type === 'series') {
         epSection.classList.remove('hidden');
-        playBtnText.textContent = 'Play Season 1 Ep 1';
-        mainPlayBtn.onclick = () => {
-            playEpisode(item.id, '1', '1', 'Pilot');
-        };
+        playBtnText.textContent = playLabelFor(item);
+        mainPlayBtn.onclick = () => playMedia(item);
         setupSeasonsDropdown(item.id, item.seasonsCount || 1);
     } else {
         epSection.classList.add('hidden');
-        playBtnText.textContent = 'Play Movie';
-        mainPlayBtn.onclick = () => {
-            closeModal();
-            openVideoPlayer(movieUrl(item.id), `${item.title} (Movie)`, item);
-        };
+        playBtnText.textContent = playLabelFor(item);
+        mainPlayBtn.onclick = () => playMedia(item);
     }
 
     modal.classList.remove('opacity-0', 'pointer-events-none');
@@ -530,6 +418,7 @@ async function loadEpisodesForSeason(tvId, seasonNum) {
                         </div>
                     </div>
                     <div class="flex items-center space-x-3 flex-shrink-0">
+                        ${isEpWatched(tvId, seasonNum, ep.episode_number) ? '<i class="fa-solid fa-circle-check ep-watched" title="Watched"></i>' : ''}
                         <span class="text-xs text-gray-500">${ep.runtime ? ep.runtime + 'm' : '40m'}</span>
                         <div class="bg-white/10 group-hover:bg-netflixRed text-white w-7 h-7 rounded-full flex items-center justify-center transition">
                             <i class="fa-solid fa-play text-xs"></i>
@@ -561,6 +450,7 @@ let player = {
     viewSeason: 1,     // season currently listed in the sidebar (can differ from the playing one)
     totalSeasons: 1,
     token: 0,          // bumps on every navigation so stale async results are ignored
+    startAt: 0,        // seconds to resume from on the next load
     loadTimer: null
 };
 
@@ -608,7 +498,7 @@ function playEpisode(tvId, seasonNum, episodeNum) {
     openVideoPlayer(null, item ? item.title : 'Now Playing', item, seasonNum, episodeNum);
 }
 
-async function openVideoPlayer(url, titleText, item, activeSeason = 1, activeEpisode = 1) {
+async function openVideoPlayer(url, titleText, item, activeSeason = 1, activeEpisode = 1, startAt = 0) {
     const isSeries = !!item && item.type === 'series';
     const season = Number(activeSeason) || 1;
 
@@ -623,6 +513,7 @@ async function openVideoPlayer(url, titleText, item, activeSeason = 1, activeEpi
         episode: Number(activeEpisode) || 1,
         viewSeason: season,
         totalSeasons: (item && item.seasonsCount) || 1,
+        startAt: Number(startAt) || 0,
         token: player.token + 1
     };
 
@@ -630,6 +521,7 @@ async function openVideoPlayer(url, titleText, item, activeSeason = 1, activeEpi
     plEl('player-subtitle').textContent = '';
     plEl('player-controls').classList.toggle('hidden', !isSeries);
     plEl('player-top-nav').classList.toggle('hidden', !isSeries);
+    plEl('player-autoplay-btn').classList.toggle('hidden', !isSeries);
     plEl('player-menu-btn').classList.toggle('hidden', !isSeries);
     plEl('player-sidebar').classList.toggle('hidden', !isSeries);
 
@@ -638,7 +530,10 @@ async function openVideoPlayer(url, titleText, item, activeSeason = 1, activeEpi
 
     if (!isSeries) {
         setPlayerSidebar(false);
-        setPlayerSource(url);
+        const t0 = player.startAt;
+        player.startAt = 0;
+        setPlayerSource(url, t0);
+        noteStarted(t0);
         return;
     }
 
@@ -654,7 +549,10 @@ async function loadEpisode(season, episode) {
     player.episode = episode;
     player.viewSeason = season;
 
-    setPlayerSource(episodeUrl(player.tvId, season, episode));
+    const startAt = player.startAt || 0;
+    player.startAt = 0;
+    setPlayerSource(episodeUrl(player.tvId, season, episode), startAt);
+    noteStarted(startAt);
     plEl('player-subtitle').textContent = `Season ${season} · Episode ${episode}`;
     syncSeasonSelect();
     setNavButtons(false, false, '', '');
@@ -705,24 +603,8 @@ function setNavButtons(hasPrev, hasNext, prevText, nextText) {
 async function stepEpisode(dir) {
     if (!player.isSeries) return;
     const { tvId, season, episode, totalSeasons } = player;
-    const eps = await fetchSeason(tvId, season);
-    const idx = eps.findIndex(e => e.episode_number === episode);
-
-    if (dir > 0) {
-        if (eps.length === 0) return loadEpisode(season, episode + 1);
-        if (idx >= 0 && idx < eps.length - 1) return loadEpisode(season, eps[idx + 1].episode_number);
-        if (season < totalSeasons) {
-            const nextEps = await fetchSeason(tvId, season + 1);
-            return loadEpisode(season + 1, nextEps.length ? nextEps[0].episode_number : 1);
-        }
-    } else {
-        if (eps.length === 0 && episode > 1) return loadEpisode(season, episode - 1);
-        if (idx > 0) return loadEpisode(season, eps[idx - 1].episode_number);
-        if (season > 1) {
-            const prevEps = await fetchSeason(tvId, season - 1);
-            return loadEpisode(season - 1, prevEps.length ? prevEps[prevEps.length - 1].episode_number : 1);
-        }
-    }
+    const target = await neighborOf(tvId, season, episode, totalSeasons, dir, true);
+    if (target) loadEpisode(target.season, target.episode);
 }
 
 function playNextEpisode() { stepEpisode(1); }
@@ -764,6 +646,7 @@ function renderSidebarEpisodes(eps, seasonNum) {
                     <b>${escapeHtml(ep.name || 'Episode ' + ep.episode_number)}</b>
                     <small>${ep.runtime ? ep.runtime + ' min' : '40 min'}</small>
                 </span>
+                <span class="pl-ep-check ${isEpWatched(player.tvId, seasonNum, ep.episode_number) ? 'is-on' : ''}" data-check="${ep.episode_number}" data-cseason="${seasonNum}" title="Mark as watched"><i class="fa-solid fa-circle-check"></i></span>
                 <i class="fa-solid fa-play"></i>
             </button>`;
     }).join('');
@@ -792,7 +675,7 @@ function togglePlayerSidebar() {
 }
 
 // ---- Iframe / lifecycle -------------------------------------------
-function setPlayerSource(url) {
+function setPlayerSource(url, startAt = 0) {
     const iframe = plEl('video-iframe');
     const loading = plEl('player-loading');
     clearTimeout(player.loadTimer);
@@ -800,7 +683,9 @@ function setPlayerSource(url) {
     iframe.onload = () => loading.classList.add('is-hidden');
     player.loadTimer = setTimeout(() => loading.classList.add('is-hidden'), 8000);
     applyIframeSandbox();
-    iframe.src = url;
+    resetPlayerRuntime();
+    iframe.src = withStartTime(url, startAt);
+    startWatchdogs();
 }
 
 function initVideoPlayerModal() {
@@ -824,6 +709,12 @@ function initVideoPlayerModal() {
     });
 
     plEl('player-sidebar-episodes-list').addEventListener('click', (e) => {
+        const check = e.target.closest('[data-check]');
+        if (check) {
+            e.stopPropagation();
+            toggleEpisodeWatched(Number(check.dataset.cseason), Number(check.dataset.check));
+            return;
+        }
         const row = e.target.closest('[data-ep]');
         if (!row) return;
         loadEpisode(Number(row.dataset.season), Number(row.dataset.ep));
@@ -849,13 +740,16 @@ function initVideoPlayerModal() {
 function closeVideoPlayer() {
     const iframe = plEl('video-iframe');
     clearTimeout(player.loadTimer);
+    if (player.open && player.item) { recordProgress(true); persistWatch(true); }
     player.open = false;
     player.token++;              // cancel any in-flight episode loads
+    resetPlayerRuntime();
 
     plEl('video-player-modal').classList.add('opacity-0', 'pointer-events-none');
     iframe.onload = null;
     iframe.src = 'about:blank';
     document.body.style.overflow = 'auto';
+    refreshWatchUI();
 }
 
 function closeModal() {
@@ -1056,7 +950,8 @@ function normalizeProfile(p, fallbackName) {
     const out = {
         displayName: (p && p.displayName) || base.displayName,
         avatar: p && AVATARS[p.avatar] ? p.avatar : 'cat',
-        lists: Array.isArray(p && p.lists) && p.lists.length ? p.lists : base.lists
+        lists: Array.isArray(p && p.lists) && p.lists.length ? p.lists : base.lists,
+        watch: p && p.watch && typeof p.watch === 'object' ? p.watch : {}
     };
     out.lists.forEach(l => { l.items = Array.isArray(l.items) ? l.items : []; });
     if (!out.lists.some(l => l.id === DEFAULT_LIST_ID)) out.lists.unshift(base.lists[0]);
@@ -1074,6 +969,7 @@ function writeCache(uid, profile) {
 let saveTimer = null;
 function persistProfile(immediate = false) {
     if (!account.user || !account.profile) return;
+    account.profile.watch = watch;
     const { uid, local } = account.user;
     const snapshot = JSON.parse(JSON.stringify(account.profile));
     writeCache(uid, snapshot);
@@ -1150,6 +1046,7 @@ function startLocalGuest() {
 }
 
 function afterAccountChange() {
+    if (account.profile) mergeWatch(account.profile.watch);
     listMediaCache.clear();
     if (account.profile) {
         account.profile.lists.forEach(l => l.items.forEach(i => listMediaCache.set(String(i.id), i)));
@@ -1170,9 +1067,11 @@ function renderNavAccount() {
     const nm = byId('nav-username');
     if (account.profile) {
         av.innerHTML = pixelAvatar(account.profile.avatar);
+        if (byId('tab-avatar')) byId('tab-avatar').innerHTML = pixelAvatar(account.profile.avatar);
         nm.textContent = account.profile.displayName;
     } else {
         av.innerHTML = '<i class="fa-solid fa-user text-gray-300 text-sm"></i>';
+        if (byId('tab-avatar')) byId('tab-avatar').innerHTML = '<i class="fa-solid fa-user"></i>';
         nm.textContent = 'Sign in';
     }
 }
@@ -1188,6 +1087,9 @@ async function signOutNow() {
     } catch (err) { console.warn(err); }
     closeOverlay('profile-modal');
     closeOverlay('lists-modal');
+    watch = {};                       // don't leave your history on this device after signing out
+    try { localStorage.removeItem(WATCH_KEY); } catch (e) {}
+    refreshWatchUI();
     showToast('Signed out');
 }
 
@@ -1569,7 +1471,7 @@ function refreshListUI() {
     if (heroBtn && heroFeatId) {
         const saved = isSaved(heroFeatId);
         heroBtn.classList.toggle('is-saved', saved);
-        heroBtn.innerHTML = `<i class="fa-solid ${saved ? 'fa-check' : 'fa-plus'}"></i>`;
+        heroBtn.innerHTML = `<i class="fa-solid ${saved ? 'fa-check' : 'fa-plus'}"></i><span class="hero-list-label">My List</span>`;
     }
 
     updateModalListBtn();
@@ -1590,7 +1492,7 @@ function updateMyListRow() {
     const container = byId('categories-container');
     if (!container) return;
     const existing = byId('my-list-row');
-    const items = defaultListItems();
+    const items = homeFilter === 'popular' ? [] : filteredItems(defaultListItems());
     if (!items.length) { if (existing) existing.remove(); return; }
     const fresh = buildRow('My List', items);
     fresh.id = 'my-list-row';
@@ -1923,8 +1825,9 @@ function setServer(url, silent = false) {
 // If something is already playing, reload it from the newly chosen server.
 function reloadPlayerSource() {
     if (!player.open) return;
-    if (player.isSeries) setPlayerSource(episodeUrl(player.tvId, player.season, player.episode));
-    else if (player.item) setPlayerSource(movieUrl(player.item.id));
+    const here = Math.floor(playerRT.time || 0);
+    if (player.isSeries) setPlayerSource(episodeUrl(player.tvId, player.season, player.episode), here);
+    else if (player.item) setPlayerSource(movieUrl(player.item.id), here);
 }
 
 function addCustomServer() {
@@ -1954,4 +1857,850 @@ function removeCustomServer(url) {
     saveCustomServers();
     if (CONFIG.domain === url) setServer(defaultServerUrl(), true);
     else renderServerList();
+}
+
+// =====================================================================
+// NETFLIX-STYLE HOME, WATCH PROGRESS, RESUME & AUTOPLAY
+// =====================================================================
+let homeFilter = 'all';   // 'all' | 'series' | 'movie' | 'popular'
+
+// TMDb genre ids -> names (movies + TV)
+const GENRE_NAMES = {
+    28: 'Action', 12: 'Adventure', 16: 'Animation', 35: 'Comedy', 80: 'Crime', 99: 'Documentary',
+    18: 'Drama', 10751: 'Family', 14: 'Fantasy', 36: 'History', 27: 'Horror', 10402: 'Music',
+    9648: 'Mystery', 10749: 'Romance', 878: 'Sci-Fi', 10770: 'TV Movie', 53: 'Thriller', 10752: 'War',
+    37: 'Western', 10759: 'Action & Adventure', 10762: 'Kids', 10763: 'News', 10764: 'Reality',
+    10765: 'Sci-Fi & Fantasy', 10766: 'Soap', 10767: 'Talk', 10768: 'War & Politics'
+};
+const genreNames = (ids) => (ids || []).map(id => GENRE_NAMES[id]).filter(Boolean);
+
+// Servers whose player understands a "start at" URL parameter (verified: VidLink).
+// Add more like: 'your-domain.com': { startParam: 't' }
+const SERVER_TRAITS = {
+    'vidlink.pro': { startParam: 'startAt' }
+};
+
+// ---------------------------------------------------------------------
+// Watch store: what you're watching, what's finished
+// ---------------------------------------------------------------------
+const WATCH_KEY = 'nx_watch_v1';
+const AUTOPLAY_KEY = 'nx_autoplay';
+let watch = {};
+try { watch = JSON.parse(localStorage.getItem(WATCH_KEY) || '{}') || {}; } catch (e) { watch = {}; }
+
+const watchEntry = (id) => watch[String(id)] || null;
+const isFinished = (id) => !!(watch[String(id)] && watch[String(id)].finished);
+const autoplayOn = () => localStorage.getItem(AUTOPLAY_KEY) !== '0';
+
+function ensureWatch(item) {
+    const id = String(item.id);
+    if (!watch[id]) {
+        watch[id] = {
+            id, type: item.type, title: item.title, poster: item.poster, banner: item.banner || item.poster,
+            year: item.year, rating: item.rating, genre: item.genre || '', genres: item.genres || [],
+            synopsis: String(item.synopsis || '').slice(0, 300), seasonsCount: item.seasonsCount || 1,
+            season: 1, episode: 1, t: 0, dur: 0, updated: 0, eps: {}, finished: false, manual: false
+        };
+    }
+    const w = watch[id];
+    if (item.seasonsCount && item.seasonsCount > (w.seasonsCount || 1)) w.seasonsCount = item.seasonsCount;
+    return w;
+}
+
+function pruneWatch() {
+    const ids = Object.keys(watch);
+    if (ids.length <= 80) return;
+    ids.sort((a, b) => (watch[b].updated || 0) - (watch[a].updated || 0))
+        .slice(80).forEach(id => delete watch[id]);
+}
+
+let lastCloudWrite = 0;
+function persistWatch(immediate = false) {
+    pruneWatch();
+    try { localStorage.setItem(WATCH_KEY, JSON.stringify(watch)); } catch (e) {}
+    if (!account.user || !account.profile) return;
+    const now = Date.now();
+    if (immediate || now - lastCloudWrite > 30000) {
+        lastCloudWrite = now;
+        persistProfile(immediate);     // persistProfile copies `watch` into the profile
+    }
+}
+
+// Merge progress stored in the cloud profile with what's on this device.
+function mergeWatch(remote) {
+    if (!remote || typeof remote !== 'object') return;
+    Object.keys(remote).forEach(id => {
+        const r = remote[id];
+        if (!r || typeof r !== 'object') return;
+        const l = watch[id];
+        if (!l) { watch[id] = r; return; }
+        const newer = (r.updated || 0) > (l.updated || 0) ? r : l;
+        const older = newer === r ? l : r;
+        watch[id] = { ...older, ...newer, eps: { ...(older.eps || {}), ...(newer.eps || {}) },
+                      finished: !!(l.finished || r.finished) };
+    });
+    try { localStorage.setItem(WATCH_KEY, JSON.stringify(watch)); } catch (e) {}
+}
+
+function progressFraction(id) {
+    const w = watchEntry(id);
+    if (!w || w.finished) return null;
+    if (w.dur > 0 && w.t > 5) return Math.max(0.03, Math.min(1, w.t / w.dur));
+    if (w.updated && (Object.keys(w.eps || {}).length || w.type === 'series')) return 0.03;
+    return w.updated ? 0.03 : null;
+}
+
+function resumeLabel(id) {
+    const w = watchEntry(id);
+    if (!w || w.finished || w.type !== 'series' || !w.updated) return '';
+    return `S${w.season}:E${w.episode}`;
+}
+
+const fmtTime = (sec) => {
+    sec = Math.max(0, Math.floor(sec));
+    const h = Math.floor(sec / 3600), m = Math.floor((sec % 3600) / 60), s = sec % 60;
+    return h ? `${h}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}` : `${m}:${String(s).padStart(2, '0')}`;
+};
+
+// ---------------------------------------------------------------------
+// Cards & rows
+// ---------------------------------------------------------------------
+function bannerFor(item) {
+    const b = item.banner || item.poster || '';
+    return String(b).replace(/\/t\/p\/(original|w\d+)\//, '/t/p/w780/');
+}
+const matchPct = (item) => Math.max(50, Math.min(99, Math.round(Number(item.rating || 8) * 10)));
+
+function cardHtml(item) {
+    const id = String(item.id);
+    const title = escapeHtml(item.title);
+    const finished = isFinished(id);
+    const pf = progressFraction(id);
+    const genres = ((item.genres && item.genres.length ? item.genres : [item.genre]).filter(Boolean)).slice(0, 3);
+    const kind = item.type === 'series'
+        ? (item.seasonsCount > 1 ? `${item.seasonsCount} Seasons` : 'Series') : 'Movie';
+
+    return `
+    <div class="nf-card ${finished ? 'is-finished' : ''} ${pf != null ? 'has-progress' : ''}" data-id="${id}" onclick="openModal('${id}')">
+        <div class="nf-thumb">
+            <picture>
+                <source media="(min-width: 768px)" srcset="${escapeHtml(bannerFor(item))}">
+                <img src="${escapeHtml(item.poster)}" alt="${title}" loading="lazy" onerror="this.src='https://placehold.co/400x600/181818/ffffff?text=No+Image'">
+            </picture>
+            <span class="nf-title-over">${title}</span>
+            <span class="nf-resume-label">${resumeLabel(id)}</span>
+            <span class="nf-watched" title="Finished"><i class="fa-solid fa-check"></i></span>
+            <div class="nf-progress"><i style="width:${Math.round((pf || 0) * 100)}%"></i></div>
+        </div>
+        <div class="nf-pop">
+            <div class="nf-actions">
+                <button type="button" class="nf-circle play" title="Play" onclick="event.stopPropagation(); quickPlay('${id}')"><i class="fa-solid fa-play"></i></button>
+                <button type="button" class="list-add-btn nf-circle" data-id="${id}" title="Add to a list" onclick="openListPicker(event, '${id}')"><i class="fa-solid fa-plus"></i></button>
+                <button type="button" class="nf-circle nf-watch-toggle ${finished ? 'is-on' : ''}" title="Mark as watched" onclick="event.stopPropagation(); toggleFinishedById('${id}')"><i class="fa-solid fa-check"></i></button>
+                <button type="button" class="nf-circle right" title="More info" onclick="event.stopPropagation(); openModal('${id}')"><i class="fa-solid fa-chevron-down"></i></button>
+            </div>
+            <div class="nf-meta">
+                <span class="nf-match">${matchPct(item)}% Match</span>
+                <span>${escapeHtml(item.year)}</span>
+                <span class="nf-hd">HD</span>
+                <span>${kind}</span>
+            </div>
+            <div class="nf-genres">${genres.map(escapeHtml).join('<i class="nf-dot"></i>')}</div>
+        </div>
+    </div>`;
+}
+
+function buildRow(cat, items, top10 = false) {
+    const row = document.createElement('section');
+    row.className = 'nf-row' + (top10 ? ' nf-row--t10' : '');
+    row.dataset.cat = cat;
+    row.innerHTML = `
+        <h2 class="nf-row-title">${escapeHtml(cat)}</h2>
+        <div class="nf-row-wrap">
+            <button type="button" class="nf-handle left" data-dir="-1" aria-label="Scroll left"><i class="fa-solid fa-chevron-left"></i></button>
+            <div class="nf-track no-scrollbar">${items.map((it, i) => top10 ? top10CardHtml(it, i + 1) : cardHtml(it)).join('')}</div>
+            <button type="button" class="nf-handle right" data-dir="1" aria-label="Scroll right"><i class="fa-solid fa-chevron-right"></i></button>
+        </div>`;
+    return row;
+}
+
+function filteredItems(items) {
+    if (homeFilter === 'series') return items.filter(i => i.type === 'series');
+    if (homeFilter === 'movie') return items.filter(i => i.type === 'movie');
+    return items;
+}
+
+function renderCategories() {
+    const container = document.getElementById('categories-container');
+    container.innerHTML = '';
+    const top10 = buildTop10Row();
+    let top10Placed = false;
+    Object.keys(catalog).forEach(cat => {
+        if (cat === TOP10_KEY) return;               // shown as the numbered Top 10 row instead
+        if (cat === 'Recently Browsed' && homeFilter === 'popular') return;
+        if (homeFilter === 'popular' && !/Trending|Top Rated/i.test(cat)) return;
+        const items = filteredItems(catalog[cat] || []);
+        if (!items.length) return;
+        container.appendChild(buildRow(cat, items));
+        if (top10 && !top10Placed && cat === 'Trending Now') { container.appendChild(top10); top10Placed = true; }
+    });
+    if (top10 && !top10Placed) container.prepend(top10);
+    updateMyListRow();
+    updateContinueRow();
+    refreshListUI();
+    refreshWatchUI();
+    requestAnimationFrame(updateAllHandles);
+}
+
+function updateContinueRow() {
+    const container = document.getElementById('categories-container');
+    if (!container) return;
+    const existing = document.getElementById('continue-row');
+    const entries = Object.values(watch)
+        .filter(w => w && !w.finished && w.updated)
+        .sort((a, b) => b.updated - a.updated)
+        .slice(0, 14);
+    let items = entries.map(w => getMedia(w.id) || w);
+    items = filteredItems(items);
+    if (homeFilter === 'popular') items = [];
+    if (!items.length) { if (existing) existing.remove(); return; }
+    const fresh = buildRow('Continue Watching', items);
+    fresh.id = 'continue-row';
+    if (existing) existing.replaceWith(fresh); else container.prepend(fresh);
+}
+
+function refreshWatchUI() {
+    document.querySelectorAll('.nf-card[data-id]').forEach(card => {
+        const id = card.dataset.id;
+        const fin = isFinished(id);
+        const pf = progressFraction(id);
+        card.classList.toggle('is-finished', fin);
+        card.classList.toggle('has-progress', pf != null);
+        const bar = card.querySelector('.nf-progress i');
+        if (bar) bar.style.width = Math.round((pf || 0) * 100) + '%';
+        const label = card.querySelector('.nf-resume-label');
+        if (label) label.textContent = resumeLabel(id);
+        const toggle = card.querySelector('.nf-watch-toggle');
+        if (toggle) toggle.classList.toggle('is-on', fin);
+    });
+    updateContinueRow();
+    updateHeroPlayLabel();
+    updateModalWatchedBtn();
+}
+
+// ---------------------------------------------------------------------
+// Hero / billboard
+// ---------------------------------------------------------------------
+function renderHero() {
+    let list = filteredItems(catalog['Trending Now'] || catalog[Object.keys(catalog)[0]] || []);
+    if (!list.length) list = filteredItems([].concat(...Object.values(catalog)));
+    if (!list.length) return;
+    const feat = list[0];
+
+    const bannerUrl = String(feat.banner || feat.poster).replace(/'/g, '%27');
+    const posterUrl = String(feat.poster || feat.banner).replace(/'/g, '%27');
+    document.getElementById('hero-backdrop').style.backgroundImage = `url('${bannerUrl}')`;
+    document.getElementById('hero-bgblur').style.backgroundImage = `url('${posterUrl}')`;
+    document.getElementById('hero-poster').src = feat.poster || feat.banner;
+    document.getElementById('hero-kind-text').textContent = feat.type === 'series' ? 'SERIES' : 'FILM';
+    document.getElementById('hero-rating').textContent = feat.rating;
+    document.getElementById('hero-year').textContent = feat.year;
+    document.getElementById('hero-match').textContent = `${matchPct(feat)}% Match`;
+    document.getElementById('hero-title').textContent = feat.title;
+    document.getElementById('hero-desc').textContent = feat.synopsis;
+    const tags = ((feat.genres && feat.genres.length ? feat.genres : [feat.genre]).filter(Boolean)).slice(0, 3);
+    document.getElementById('hero-tags').textContent = tags.join('  •  ');
+
+    heroFeatId = feat.id;
+    document.getElementById('hero-list-btn').onclick = () => openListPicker(null, feat.id);
+    document.getElementById('hero-info-btn').onclick = () => openModal(feat.id);
+    document.getElementById('hero-play-btn').onclick = () => playMedia(getMedia(feat.id) || feat);
+    updateHeroPlayLabel();
+    refreshListUI();
+}
+
+function updateHeroPlayLabel() {
+    const label = document.getElementById('hero-play-text');
+    if (!label || !heroFeatId) return;
+    const feat = getMedia(heroFeatId);
+    label.textContent = feat ? shortPlayLabel(feat) : 'Play';
+}
+
+function shortPlayLabel(item) {
+    const w = watchEntry(item.id);
+    if (w && w.finished) return 'Play again';
+    if (w && w.updated && (w.t > 10 || Object.keys(w.eps || {}).length || item.type === 'series')) return 'Resume';
+    return 'Play';
+}
+
+function playLabelFor(item) {
+    const w = watchEntry(item.id);
+    if (w && w.finished) return 'Watch again';
+    if (item.type === 'series') {
+        if (w && w.updated) return `Resume S${w.season}:E${w.episode}`;
+        return 'Play Season 1 Ep 1';
+    }
+    return w && w.t > 10 ? `Resume at ${fmtTime(w.t)}` : 'Play Movie';
+}
+
+function setHomeFilter(filter) {
+    homeFilter = filter;
+    clearSearch();
+    document.querySelectorAll('[data-filter]').forEach(el => {
+        el.classList.toggle('is-active', el.dataset.filter === filter);
+    });
+    setBottomActive('home');
+    const title = document.getElementById('nav-title');
+    if (title) title.textContent = { all: 'Home', series: 'TV Shows', movie: 'Movies', popular: 'New & Hot' }[filter] || 'Home';
+    document.getElementById('nav-chips').classList.toggle('has-filter', filter !== 'all');
+    renderHero();
+    renderCategories();
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+// ---------------------------------------------------------------------
+// Playing: resume, quick play, finished toggles
+// ---------------------------------------------------------------------
+async function ensureShowDetails(item) {
+    if (!item || item.type !== 'series' || item._detailed) return;
+    item._detailed = true;
+    if (!/^\d+$/.test(String(item.id))) return;
+    try {
+        const res = await fetch(`${CONFIG.tmdbBaseUrl}/tv/${item.id}?api_key=${userApiKey}`);
+        const d = await res.json();
+        if (d.number_of_seasons) { item.seasonsCount = d.number_of_seasons; item.duration = `${d.number_of_seasons} Seasons`; }
+        if (d.genres && d.genres.length) { item.genres = d.genres.map(g => g.name); item.genre = item.genres[0]; }
+    } catch (e) { /* keep defaults */ }
+}
+
+// Next/previous episode of a show (crosses seasons). Returns {season, episode} or null.
+async function neighborOf(tvId, season, episode, totalSeasons, dir, blind = false) {
+    const eps = await fetchSeason(tvId, season);
+    const idx = eps.findIndex(e => e.episode_number === episode);
+    if (dir > 0) {
+        if (eps.length === 0) return blind ? { season, episode: episode + 1 } : null;
+        if (idx >= 0 && idx < eps.length - 1) return { season, episode: eps[idx + 1].episode_number };
+        if (season < totalSeasons) {
+            const next = await fetchSeason(tvId, season + 1);
+            return { season: season + 1, episode: next.length ? next[0].episode_number : 1 };
+        }
+        return null;
+    }
+    if (eps.length === 0) return (blind && episode > 1) ? { season, episode: episode - 1 } : null;
+    if (idx > 0) return { season, episode: eps[idx - 1].episode_number };
+    if (season > 1) {
+        const prev = await fetchSeason(tvId, season - 1);
+        return { season: season - 1, episode: prev.length ? prev[prev.length - 1].episode_number : 1 };
+    }
+    return null;
+}
+
+async function playMedia(item, opts = {}) {
+    if (!item) return;
+    trackRecentlyBrowsed(item);
+    let w = watchEntry(item.id);
+    let fromStart = !!opts.fromStart || !!(w && w.finished);
+
+    if (fromStart && w) {            // watching something again: wipe the old progress
+        w.finished = false; w.manual = false; w.eps = {}; w.t = 0; w.dur = 0; w.season = 1; w.episode = 1;
+        persistWatch(true);
+    }
+
+    if (item.type !== 'series') {
+        const t = (!fromStart && w && w.t > 10) ? w.t : 0;
+        closeModal();
+        openVideoPlayer(movieUrl(item.id), `${item.title} (Movie)`, item, 1, 1, t);
+        return;
+    }
+
+    await ensureShowDetails(item);
+    let s = 1, e = 1, t = 0;
+    w = watchEntry(item.id);
+    if (!fromStart && w && w.updated) {
+        s = w.season || 1; e = w.episode || 1; t = w.t || 0;
+        if (w.eps && w.eps[`${s}:${e}`]) {            // that episode is done: continue with the next one
+            const next = await neighborOf(item.id, s, e, item.seasonsCount || 1, 1);
+            if (next) { s = next.season; e = next.episode; t = 0; }
+        }
+    }
+    closeModal();
+    openVideoPlayer(null, item.title, item, s, e, t);
+}
+
+function quickPlay(id) { playMedia(getMedia(id)); }
+
+function toggleFinished(item) {
+    const w = ensureWatch(item);
+    const now = !w.finished;
+    w.finished = now;
+    w.manual = now;
+    w.updated = Date.now();
+    if (!now) { w.eps = {}; w.t = 0; w.dur = 0; }
+    persistWatch(true);
+    refreshWatchUI();
+    showToast(now ? `Marked “${item.title}” as watched ✓` : 'Removed from watched');
+}
+function toggleFinishedById(id) { const item = getMedia(id); if (item) toggleFinished(item); }
+
+function updateModalWatchedBtn() {
+    const btn = document.getElementById('modal-watched-btn');
+    if (!btn || !currentActiveItem) return;
+    const fin = isFinished(currentActiveItem.id);
+    btn.classList.toggle('is-on', fin);
+    document.getElementById('modal-watched-btn-text').textContent = fin ? 'Watched' : 'Mark as watched';
+}
+
+const isEpWatched = (tvId, season, ep) => {
+    const w = watchEntry(tvId);
+    return !!(w && w.eps && w.eps[`${season}:${ep}`]);
+};
+
+async function recomputeFinished(item) {
+    const w = ensureWatch(item);
+    const total = item.seasonsCount || w.seasonsCount || 1;
+    const eps = await fetchSeason(item.id, total);
+    const last = eps.length ? eps[eps.length - 1].episode_number : null;
+    w.finished = !!((last && w.eps[`${total}:${last}`]) || w.manual);
+}
+
+async function toggleEpisodeWatched(season, episode) {
+    const item = player.item;
+    if (!item) return;
+    const w = ensureWatch(item);
+    const key = `${season}:${episode}`;
+    if (w.eps[key]) delete w.eps[key]; else w.eps[key] = 1;
+    await recomputeFinished(item);
+    w.updated = Date.now();
+    persistWatch(true);
+    refreshWatchUI();
+    renderSidebarEpisodes(await fetchSeason(player.tvId, player.viewSeason), player.viewSeason);
+}
+
+// ---------------------------------------------------------------------
+// Player progress, resume & autoplay
+// ---------------------------------------------------------------------
+const playerRT = {
+    time: 0, dur: 0, eventsSeen: false, ended: false, counted: false,
+    lastSave: 0, loadAt: 0, watchdog: null, nudge: null, countdown: null, upNextGo: null
+};
+
+function resetPlayerRuntime() {
+    clearTimeout(playerRT.watchdog);
+    clearTimeout(playerRT.nudge);
+    hideUpNext();
+    Object.assign(playerRT, { time: 0, dur: 0, eventsSeen: false, ended: false, counted: false, lastSave: 0, loadAt: Date.now() });
+}
+
+function serverTrait(url) {
+    try { return SERVER_TRAITS[new URL(url).host] || null; } catch (e) { return null; }
+}
+function withStartTime(url, t) {
+    const trait = serverTrait(url);
+    if (!trait || !trait.startParam || !(t >= 10)) return url;
+    const u = new URL(url);
+    u.searchParams.set(trait.startParam, String(Math.floor(t)));
+    return u.toString();
+}
+
+// Called every time something starts loading in the player.
+function noteStarted(startAt) {
+    const item = player.item;
+    if (!item) return;
+    const w = ensureWatch(item);
+    if (player.isSeries) {
+        if (w.season !== player.season || w.episode !== player.episode) { w.t = 0; w.dur = 0; }
+        w.season = player.season;
+        w.episode = player.episode;
+    }
+    w.updated = Date.now();
+    persistWatch(true);
+    refreshWatchUI();
+    if (startAt >= 10) {
+        showToast(serverTrait(byId('video-iframe').src || CONFIG.domain)
+            ? `Resuming at ${fmtTime(startAt)}`
+            : (player.isSeries ? `Continuing S${player.season} · E${player.episode}` : 'Continuing where you left off'));
+    }
+}
+
+function startWatchdogs() {
+    clearTimeout(playerRT.watchdog);
+    // If the server never reports playback, fall back to a gentle "Next episode" nudge near the end.
+    playerRT.watchdog = setTimeout(() => { if (!playerRT.eventsSeen) scheduleNudge(); }, 25000);
+}
+
+async function scheduleNudge() {
+    if (!player.open || !player.isSeries) return;
+    const tok = player.token;
+    const eps = await fetchSeason(player.tvId, player.season);
+    if (tok !== player.token) return;
+    const cur = eps.find(e => e.episode_number === player.episode);
+    const runtimeMin = (cur && cur.runtime) || 40;
+    const target = await neighborOf(player.tvId, player.season, player.episode, player.totalSeasons, 1);
+    if (!target || tok !== player.token) return;
+    const ms = Math.max(60000, runtimeMin * 60 * 1000 * 0.93 - 25000);
+    playerRT.nudge = setTimeout(() => {
+        if (tok === player.token && player.open && !playerRT.eventsSeen) showUpNext(target, false);
+    }, ms);
+}
+
+function parsePlayerMessage(e) {
+    let d = e.data;
+    if (typeof d === 'string') { try { d = JSON.parse(d); } catch (err) { return null; } }
+    if (!d || typeof d !== 'object') return null;
+    let body = d;
+    if (d.type === 'PLAYER_EVENT' && d.data && typeof d.data === 'object') body = d.data;
+    else if (d.data && typeof d.data === 'object' && (d.data.event || d.data.currentTime != null)) body = d.data;
+
+    const num = (v) => (v == null || v === '') ? NaN : Number(v);
+    const currentTime = num(body.currentTime ?? body.current_time ?? body.time ?? body.position);
+    const duration = num(body.duration ?? body.total);
+    let event = String(body.event || (d !== body ? '' : body.type) || d.event || '').toLowerCase();
+    if (!event && isFinite(currentTime)) event = 'timeupdate';
+    if (!event) return null;
+    if (['complete', 'completed', 'finish', 'finished'].includes(event)) event = 'ended';
+    if (['time', 'progress'].includes(event)) event = 'timeupdate';
+    return { event, currentTime, duration };
+}
+
+function onPlayerMessage(e) {
+    if (!player.open) return;
+    const frame = byId('video-iframe');
+    if (!frame || e.source !== frame.contentWindow) return;     // only trust our own player frame
+    const m = parsePlayerMessage(e);
+    if (!m) return;
+
+    playerRT.eventsSeen = true;
+    clearTimeout(playerRT.watchdog);
+    clearTimeout(playerRT.nudge);
+    if (m.duration > 0) playerRT.dur = m.duration;
+    if (isFinite(m.currentTime)) playerRT.time = m.currentTime;
+
+    const early = Date.now() - playerRT.loadAt < 20000;         // ignore spurious "ended" right after loading
+    if (m.event === 'ended' && !early) { recordProgress(true); handleEnded(); return; }
+    if (m.event === 'timeupdate' && playerRT.dur > 60 && playerRT.time > 30 && playerRT.dur - playerRT.time <= 3) {
+        recordProgress(true); handleEnded(); return;
+    }
+    recordProgress(false);
+}
+
+function recordProgress(force) {
+    const item = player.item;
+    if (!item || !player.open || !(playerRT.dur > 0)) return;
+    const now = Date.now();
+    if (!force && now - playerRT.lastSave < 3000) return;
+    playerRT.lastSave = now;
+
+    const w = ensureWatch(item);
+    if (player.isSeries) { w.season = player.season; w.episode = player.episode; }
+    w.t = playerRT.time;
+    w.dur = playerRT.dur;
+    w.updated = now;
+
+    if (playerRT.time / playerRT.dur >= 0.92 && !playerRT.counted) {
+        playerRT.counted = true;
+        markCurrentWatched();
+        return;
+    }
+    persistWatch(false);
+}
+
+async function markCurrentWatched() {
+    const item = player.item;
+    if (!item) return;
+    const w = ensureWatch(item);
+    if (player.isSeries) {
+        w.eps[`${player.season}:${player.episode}`] = 1;
+        await recomputeFinished(item);
+    } else {
+        w.finished = true;
+    }
+    w.updated = Date.now();
+    persistWatch(true);
+    refreshWatchUI();
+    if (player.isSeries && player.open) {
+        renderSidebarEpisodes(await fetchSeason(player.tvId, player.viewSeason), player.viewSeason);
+    }
+}
+
+async function handleEnded() {
+    if (playerRT.ended || !player.open) return;
+    playerRT.ended = true;
+    const tok = player.token;
+    playerRT.counted = true;
+    await markCurrentWatched();
+    if (tok !== player.token) return;
+
+    if (!player.isSeries) { showToast(`Finished “${player.title}” ✓`); return; }
+    const target = await neighborOf(player.tvId, player.season, player.episode, player.totalSeasons, 1);
+    if (tok !== player.token) return;
+    if (!target) { showToast(`You've finished “${player.title}” ✓`); return; }
+    showUpNext(target, autoplayOn());
+}
+
+async function showUpNext(target, auto) {
+    const tok = player.token;
+    const eps = await fetchSeason(player.tvId, target.season);
+    if (tok !== player.token || !player.open) return;
+    const ep = eps.find(x => x.episode_number === target.episode);
+
+    byId('up-next-label').textContent = auto ? 'Up next' : 'Next episode';
+    byId('up-next-title').textContent = `S${target.season} · E${target.episode}${ep && ep.name ? ' — ' + ep.name : ''}`;
+    byId('up-next').classList.remove('hidden');
+
+    clearInterval(playerRT.countdown);
+    const go = () => { hideUpNext(); loadEpisode(target.season, target.episode); };
+    playerRT.upNextGo = go;
+    const playText = byId('up-next-play-text');
+    if (auto) {
+        let n = 5;
+        playText.textContent = `Play now (${n})`;
+        playerRT.countdown = setInterval(() => {
+            n--;
+            if (n <= 0) { clearInterval(playerRT.countdown); go(); }
+            else playText.textContent = `Play now (${n})`;
+        }, 1000);
+    } else {
+        playText.textContent = 'Play now';
+    }
+}
+
+function hideUpNext() {
+    clearInterval(playerRT.countdown);
+    playerRT.upNextGo = null;
+    const el = document.getElementById('up-next');
+    if (el) el.classList.add('hidden');
+}
+
+function syncAutoplayBtn() {
+    const btn = byId('player-autoplay-btn');
+    if (btn) btn.classList.toggle('is-on', autoplayOn());
+}
+
+// ---------------------------------------------------------------------
+// Back button closes pop-ups instead of leaving the site (phones)
+// ---------------------------------------------------------------------
+const isMobile = () => window.matchMedia('(max-width: 767px)').matches;
+const overlayStack = [];
+let sentinelActive = false;
+let ignorePops = 0;
+const overlayIsOpen = (id) => { const el = byId(id); return !!el && !el.classList.contains('pointer-events-none'); };
+
+function closeOverlayById(id) {
+    switch (id) {
+        case 'details-modal': closeModal(); break;
+        case 'video-player-modal': closeVideoPlayer(); break;
+        case 'auth-modal': closeAuthModal(true); break;
+        case 'lists-modal': closeListsPage(); break;
+        case 'list-picker-modal': pickerMediaId = null; closeOverlay(id); break;
+        case 'server-modal': closeServerModal(); break;
+        default: closeOverlay(id);
+    }
+}
+
+function syncOverlayHistory() {
+    OVERLAY_IDS.forEach(id => {
+        const open = overlayIsOpen(id);
+        const idx = overlayStack.indexOf(id);
+        if (open && idx === -1) overlayStack.push(id);
+        else if (!open && idx !== -1) overlayStack.splice(idx, 1);
+    });
+    if (overlayStack.length && !sentinelActive) {
+        try { history.pushState({ nxOverlay: true }, ''); sentinelActive = true; } catch (e) {}
+    } else if (!overlayStack.length && sentinelActive) {
+        sentinelActive = false;
+        ignorePops++;
+        history.back();
+    }
+}
+
+function initBackButton() {
+    if (!window.MutationObserver) return;
+    const observer = new MutationObserver(syncOverlayHistory);
+    OVERLAY_IDS.forEach(id => {
+        const el = byId(id);
+        if (el) observer.observe(el, { attributes: true, attributeFilter: ['class'] });
+    });
+    window.addEventListener('popstate', () => {
+        if (ignorePops > 0) { ignorePops--; return; }
+        if (!sentinelActive) return;
+        sentinelActive = false;
+        const top = overlayStack.pop();
+        if (top) closeOverlayById(top);
+        syncOverlayHistory();
+    });
+}
+
+// ---------------------------------------------------------------------
+// Wire up the new UI
+// ---------------------------------------------------------------------
+function initUI() {
+    const nav = byId('navbar');
+    const input = byId('search-input');
+    const wrap = nav.querySelector('.search-wrap');
+
+    // navbar turns solid when you scroll
+    const onScroll = () => nav.classList.toggle('scrolled', window.scrollY > 10);
+    window.addEventListener('scroll', onScroll, { passive: true });
+    onScroll();
+
+    // Home / TV Shows / Movies / New & Popular (desktop links, phone chips)
+    document.addEventListener('click', (e) => {
+        const f = e.target.closest('#navbar [data-filter]');
+        if (!f) return;
+        e.preventDefault();
+        setHomeFilter(f.dataset.filter);
+    });
+
+    // search box: expands on desktop, takes over the top bar on phones
+    const openSearch = () => {
+        nav.classList.add('search-open');
+        setBottomActive('search');
+        input.focus();
+    };
+    const closeSearch = () => {
+        nav.classList.remove('search-open');
+        setBottomActive('home');
+    };
+    byId('search-icon-btn').addEventListener('click', openSearch);
+    input.addEventListener('input', () => wrap.classList.toggle('has-text', !!input.value.trim()));
+    input.addEventListener('blur', () => {
+        setTimeout(() => { if (!input.value.trim()) closeSearch(); }, 150);
+    });
+    byId('search-cancel-btn').addEventListener('click', () => {   // phones: iOS-style "Cancel"
+        input.value = '';
+        wrap.classList.remove('has-text');
+        clearSearch();
+        closeSearch();
+        input.blur();
+    });
+
+    // row arrows (desktop) + hover-card edge handling
+    document.addEventListener('click', (e) => {
+        const h = e.target.closest('.nf-handle');
+        if (!h) return;
+        e.stopPropagation();
+        scrollRow(h.parentElement.querySelector('.nf-track'), Number(h.dataset.dir));
+    });
+    // show a row's arrows only when it can actually scroll that way
+    document.addEventListener('scroll', (e) => {
+        if (e.target.classList && e.target.classList.contains('nf-track')) updateHandles(e.target);
+    }, true);
+    document.addEventListener('mouseover', (e) => {
+        const row = e.target.closest && e.target.closest('.nf-row');
+        if (row) updateHandles(row.querySelector('.nf-track'));
+    });
+    window.addEventListener('resize', updateAllHandles);
+    document.addEventListener('mouseover', (e) => {
+        const card = e.target.closest && e.target.closest('.nf-track .nf-card');
+        if (!card || !window.matchMedia('(hover: hover) and (min-width: 768px)').matches) return;
+        const r = card.getBoundingClientRect();
+        const grow = r.width * 0.2;
+        card.classList.toggle('edge-left', r.left < grow + 16);
+        card.classList.toggle('edge-right', r.right > window.innerWidth - grow - 16);
+    });
+
+    // phone bottom tab bar
+    byId('bottom-nav').addEventListener('click', (e) => {
+        const btn = e.target.closest('[data-nav]');
+        if (!btn) return;
+        switch (btn.dataset.nav) {
+            case 'home': setHomeFilter('all'); break;
+            case 'search': byId('search-icon-btn').click(); break;
+            case 'lists': openListsPage(); break;
+            case 'profile': byId('profile-btn').click(); break;
+        }
+    });
+
+    // swipe the episodes drawer left to close it
+    const sidebar = byId('player-sidebar');
+    let startX = null;
+    sidebar.addEventListener('touchstart', (e) => { startX = e.touches[0].clientX; }, { passive: true });
+    sidebar.addEventListener('touchend', (e) => {
+        if (startX === null) return;
+        const dx = e.changedTouches[0].clientX - startX;
+        startX = null;
+        if (isMobile() && dx < -60) setPlayerSidebar(false);
+    }, { passive: true });
+
+    // details pop-up: mark as watched
+    byId('modal-watched-btn').addEventListener('click', () => { if (currentActiveItem) toggleFinished(currentActiveItem); });
+
+    // player: autoplay switch, up-next card, progress messages
+    byId('player-autoplay-btn').addEventListener('click', () => {
+        localStorage.setItem(AUTOPLAY_KEY, autoplayOn() ? '0' : '1');
+        syncAutoplayBtn();
+        showToast(autoplayOn() ? 'Autoplay next episode: on' : 'Autoplay next episode: off');
+        if (!autoplayOn()) hideUpNext();
+    });
+    syncAutoplayBtn();
+    byId('up-next-play').addEventListener('click', () => { if (playerRT.upNextGo) playerRT.upNextGo(); });
+    byId('up-next-cancel').addEventListener('click', hideUpNext);
+    window.addEventListener('message', onPlayerMessage);
+    window.addEventListener('pagehide', () => { if (player.open) { recordProgress(true); persistWatch(true); } });
+
+    initBackButton();
+    setHomeFilterUI();
+}
+
+function setBottomActive(key) {
+    document.querySelectorAll('#bottom-nav [data-nav]').forEach(el => {
+        el.classList.toggle('is-active', el.dataset.nav === key);
+    });
+}
+
+function setHomeFilterUI() {
+    document.querySelectorAll('[data-filter]').forEach(el => el.classList.toggle('is-active', el.dataset.filter === homeFilter));
+    setBottomActive('home');
+}
+
+// ---------------------------------------------------------------------
+// Row scrolling (arrows scroll one "page" of cards, like Netflix)
+// ---------------------------------------------------------------------
+function updateHandles(track) {
+    if (!track || !track.parentElement) return;
+    const wrap = track.parentElement;
+    const max = track.scrollWidth - track.clientWidth;
+    wrap.classList.toggle('can-left', track.scrollLeft > 8);
+    wrap.classList.toggle('can-right', track.scrollLeft < max - 8);
+}
+function updateAllHandles() { document.querySelectorAll('.nf-track').forEach(updateHandles); }
+
+function scrollRow(track, dir) {
+    if (!track) return;
+    const card = track.querySelector('.nf-card');
+    if (!card) return;
+    const cs = getComputedStyle(track);
+    const gap = parseFloat(cs.columnGap || cs.gap) || 0;
+    const unit = card.offsetWidth + gap;                       // offsetWidth ignores the hover zoom
+    const inner = track.clientWidth - (parseFloat(cs.paddingLeft) || 0) - (parseFloat(cs.paddingRight) || 0);
+    const perPage = Math.max(1, Math.floor((inner + gap) / unit));
+    track.scrollBy({ left: dir * unit * perPage, behavior: 'smooth' });
+}
+
+// ---------------------------------------------------------------------
+// "Top 10" row: big outlined numbers next to portrait posters
+// ---------------------------------------------------------------------
+const TOP10_KEY = 'Top 10 This Week';
+
+function buildTop10Row() {
+    const source = (catalog[TOP10_KEY] && catalog[TOP10_KEY].length) ? catalog[TOP10_KEY] : (catalog['Trending Now'] || []);
+    const items = filteredItems(source).slice(0, 10);
+    if (items.length < 3) return null;
+    const label = homeFilter === 'series' ? 'TV Shows ' : homeFilter === 'movie' ? 'Movies ' : '';
+    return buildRow(`Top 10 ${label}This Week`, items, true);
+}
+
+function top10CardHtml(item, rank) {
+    const id = String(item.id);
+    const title = escapeHtml(item.title);
+    const pf = progressFraction(id);
+    return `
+    <div class="nf-card nf-card--t10 ${rank >= 10 ? 'two' : ''} ${isFinished(id) ? 'is-finished' : ''} ${pf != null ? 'has-progress' : ''}" data-id="${id}" onclick="openModal('${id}')" title="${title}">
+        <div class="nf-thumb">
+            <img src="${escapeHtml(item.poster)}" alt="${title}" loading="lazy" onerror="this.src='https://placehold.co/400x600/181818/ffffff?text=No+Image'">
+            <span class="nf-watched" title="Finished"><i class="fa-solid fa-check"></i></span>
+            <div class="nf-progress"><i style="width:${Math.round((pf || 0) * 100)}%"></i></div>
+        </div>
+        <span class="nf-t10-num" aria-label="Number ${rank}">${rank}</span>
+    </div>`;
 }
