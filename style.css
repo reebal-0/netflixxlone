@@ -723,8 +723,8 @@ html:has(body[style*="overflow: hidden"]) { overflow: hidden; }
         background: linear-gradient(180deg, rgba(0, 0, 0, 0.8) 0%, rgba(0, 0, 0, 0) 100%);
     }
     .nf-nav.scrolled { background: rgba(20, 20, 20, 0.97); }
-    .logo-full { display: none; }
-    .logo-n { display: block; color: #E50914; font-weight: 900; font-size: 2.2rem; line-height: 1; letter-spacing: -0.04em; }
+    .logo-full { font-size: 1.7rem; }          /* full NETFLIX wordmark on phones too */
+    .logo-n { display: none; }
     .nf-links, .nf-profile { display: none; }
     .nf-nav-right { gap: 0.15rem; }
     .nf-icon-btn, .search-wrap #search-icon-btn { width: 2.6rem; height: 2.6rem; font-size: 1.15rem; }
@@ -889,10 +889,9 @@ html { background: #141414; }
 /* =====================================================================
    PHONE TOP BAR v2 — "N Home" title, translucent chips, search lives in the tab bar
    ===================================================================== */
-.nav-title, .search-cancel { display: none; }
+.search-cancel { display: none; }
 @media (max-width: 767px) {
     .nf-nav-left { align-items: center; gap: 0.55rem; }
-    .nav-title { display: block; font-size: 1.5rem; font-weight: 800; line-height: 1; letter-spacing: -0.01em; }
     /* the magnifier now lives in the bottom bar; the field only appears while searching */
     .nf-nav .search-wrap { display: none; }
     .nf-nav.search-open .search-wrap { display: flex; }
@@ -901,4 +900,20 @@ html { background: #141414; }
     .chip { border: 0; background: rgba(255, 255, 255, 0.14); backdrop-filter: blur(6px); padding: 0.45rem 1.05rem; font-size: 0.9rem; }
     .chip.is-active { background: #fff; color: #000; }
     .chip-clear { border: 0; background: rgba(255, 255, 255, 0.14); }
+}
+
+/* =====================================================================
+   HOVER FIX + EASIER ROW SCROLLING
+   ===================================================================== */
+/* The track has big invisible padding (room for the hover pop-up). Let the pointer pass through it
+   so it can't steal hover from the row underneath; only the cards themselves react. */
+.nf-track { pointer-events: none; }
+.nf-card, .nf-handle { pointer-events: auto; }
+.nf-card img { -webkit-user-drag: none; user-select: none; }
+.nf-track.is-dragging { scroll-behavior: auto; scroll-snap-type: none; cursor: grabbing; user-select: none; }
+
+@media (max-width: 767px) {
+    .nf-track { pointer-events: auto; scroll-snap-type: none; scroll-behavior: auto; touch-action: pan-x pan-y; cursor: grab; }
+    .nf-row-wrap .nf-handle { display: none !important; }   /* no arrows on phones: they only got in the way of swiping */
+    .nf-card { cursor: pointer; }
 }
