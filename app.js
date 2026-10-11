@@ -29,12 +29,12 @@ const SERVER_PRESETS = [
 
 // =====================================================================
 // FIREBASE CONFIG — paste yours here
-// Firebase console → Project settings → General → Your apps → Web app → "SDK setup and configuration"
-// (These values are safe to be public; your Firestore security rules protect the data.)
+// Firebase console → Project settings → General → Your apps → Web app
 // =====================================================================
 const FIREBASE_CONFIG = {
     apiKey: "AIzaSyDP7sKFk-8qFDBLaHMHBaZrVr-wUm8faZs",
     authDomain: "netflixxlone-528de.firebaseapp.com",
+    databaseURL: "https://netflixxlone-528de-default-rtdb.firebaseio.com",
     projectId: "netflixxlone-528de",
     storageBucket: "netflixxlone-528de.firebasestorage.app",
     messagingSenderId: "324468746158",
