@@ -2638,6 +2638,7 @@ function initUI() {
     window.addEventListener('message', onPlayerMessage);
     window.addEventListener('pagehide', () => { if (player.open) { recordProgress(true); persistWatch(true); } });
 
+    initDragScroll();
     initBackButton();
     setHomeFilterUI();
 }
@@ -2703,4 +2704,34 @@ function top10CardHtml(item, rank) {
         </div>
         <span class="nf-t10-num" aria-label="Number ${rank}">${rank}</span>
     </div>`;
+}
+
+// ---------------------------------------------------------------------
+// Phone layout: swipe rows with a finger (native) or drag them with a mouse
+// ---------------------------------------------------------------------
+function initDragScroll() {
+    let track = null, startX = 0, startLeft = 0, moved = false;
+
+    document.addEventListener('pointerdown', (e) => {
+        moved = false;
+        if (e.pointerType !== 'mouse' || e.button !== 0 || !isMobile()) return;
+        const t = e.target.closest && e.target.closest('.nf-track');
+        if (!t) return;
+        track = t; startX = e.clientX; startLeft = t.scrollLeft;
+    });
+    document.addEventListener('pointermove', (e) => {
+        if (!track) return;
+        const dx = e.clientX - startX;
+        if (Math.abs(dx) > 5) { moved = true; track.classList.add('is-dragging'); }
+        if (moved) track.scrollLeft = startLeft - dx;
+    });
+    const end = () => { if (track) track.classList.remove('is-dragging'); track = null; };
+    document.addEventListener('pointerup', end);
+    document.addEventListener('pointercancel', end);
+    document.addEventListener('dragstart', (e) => {            // stop the browser dragging the poster image itself
+        if (e.target.closest && e.target.closest('.nf-track')) e.preventDefault();
+    });
+    document.addEventListener('click', (e) => {                // a drag must not open the details pop-up
+        if (moved) { e.stopPropagation(); e.preventDefault(); moved = false; }
+    }, true);
 }
