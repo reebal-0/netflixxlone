@@ -7,9 +7,9 @@
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <title>Netflix</title>
-    <!-- Netflix Favicon -->
-    <link rel="icon" type="image/png" href="https://a.favicon.im/netflix.com">
+    <title>Movie Explorer</title>
+    <!-- Generic Favicon -->
+    <link rel="icon" href="data:,">
     <!-- Tailwind CSS CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
@@ -39,7 +39,7 @@
     <nav id="navbar" class="nf-nav">
         <div class="nf-nav-left">
             <a href="#" onclick="resetHomeView(event)" class="nav-logo" aria-label="Home">
-                <span class="logo-full">NETFLIX</span><span class="logo-n">N</span>
+                <span class="logo-full">STREAMFLIX</span><span class="logo-n">S</span>
             </a>
             <span id="nav-title" class="nav-title">Home</span>
             <div class="nf-links">
@@ -100,7 +100,7 @@
         <div class="hero-vignette"></div>
         <div class="hero-card"><img id="hero-poster" alt=""><div class="hero-card-fade"></div></div>
         <div id="hero-content" class="hero-content">
-            <div class="hero-kind"><span class="hero-n">N</span><span id="hero-kind-text">SERIES</span></div>
+            <div class="hero-kind"><span class="hero-n">S</span><span id="hero-kind-text">SERIES</span></div>
             <h1 id="hero-title" class="hero-title">Arcane</h1>
             <p id="hero-tags" class="hero-tags"></p>
             <div class="hero-meta">
@@ -464,6 +464,9 @@
     <!-- Footer -->
     <footer class="nf-footer bg-[#141414] text-gray-500 py-12 px-4 md:px-12 border-t border-gray-900 mt-12 text-sm">
         <div class="max-w-6xl mx-auto space-y-6">
+            <div class="text-xs text-yellow-500/80 bg-yellow-500/10 border border-yellow-500/20 rounded-lg p-3">
+                <strong>Disclaimer:</strong> This is an open-source educational portfolio project and is not affiliated with, operated by, or endorsed by Netflix, Inc. All movie metadata and artwork are provided by TMDb.
+            </div>
             <div class="flex space-x-6 text-lg text-gray-400">
                 <a href="#" class="hover:text-white transition"><i class="fa-brands fa-facebook-f"></i></a>
                 <a href="#" class="hover:text-white transition"><i class="fa-brands fa-instagram"></i></a>
@@ -493,7 +496,7 @@
                 </div>
             </div>
             <div class="pt-4 text-xs text-gray-600">
-                &copy; 2026 Netflix IMDb Explorer, Inc. All rights reserved.
+                &copy; 2026 Movie Explorer Explorer, Inc. All rights reserved.
             </div>
         </div>
     </footer>
