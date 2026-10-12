@@ -6,10 +6,11 @@
     <meta name="theme-color" content="#141414">
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-title" content="Netflix">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <title>Movie Explorer</title>
-    <!-- Generic Favicon -->
-    <link rel="icon" href="data:,">
+    <title>Netflix</title>
+    <!-- Netflix "N" favicon (inline, no external request) -->
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 48 48'%3E%3Crect width='48' height='48' rx='9' fill='%23141414'/%3E%3Cg transform='translate(12.6 5) scale(.95)'%3E%3Cpath fill='%23B1060F' d='M0 0h7v40H0zM17 0h7v40h-7z'/%3E%3Cpath fill='%23E50914' d='M0 0h7l17 40h-7z'/%3E%3C/g%3E%3C/svg%3E">
     <!-- Tailwind CSS CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
@@ -28,18 +29,29 @@
     </script>
     <!-- FontAwesome for cinematic icons -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <!-- Google Fonts Inter -->
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <!-- Google Fonts: Inter (UI) + Bebas Neue (NETFLIX wordmark) -->
+    <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
     <!-- Custom CSS File -->
     <link rel="stylesheet" href="style.css">
 </head>
 <body class="bg-netflixDark text-white antialiased selection:bg-netflixRed selection:text-white">
 
+    <!-- Netflix "N" symbol, reused everywhere with <use href="#nf-n"> -->
+    <svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false">
+        <symbol id="nf-n" viewBox="0 0 24 40">
+            <path fill="#B1060F" d="M0 0h7v40H0zM17 0h7v40h-7z"/>
+            <path fill="#E50914" d="M0 0h7l17 40h-7z"/>
+            <path fill="#000" fill-opacity=".32" d="M0 40V28.6L7 40z"/>
+            <path fill="#000" fill-opacity=".32" d="M24 0v11.4L17 0z"/>
+        </symbol>
+    </svg>
+
     <!-- Navigation Bar -->
     <nav id="navbar" class="nf-nav">
         <div class="nf-nav-left">
-            <a href="#" onclick="resetHomeView(event)" class="nav-logo" aria-label="Home">
-                <span class="logo-full">STREAMFLIX</span><span class="logo-n">S</span>
+            <a href="#" onclick="resetHomeView(event)" class="nav-logo" aria-label="Netflix home">
+                <span class="logo-full">NETFLIX</span>
+                <svg class="logo-n" viewBox="0 0 24 40" aria-hidden="true"><use href="#nf-n"/></svg>
             </a>
             <span id="nav-title" class="nav-title">Home</span>
             <div class="nf-links">
@@ -53,7 +65,7 @@
         <div class="nf-nav-right nav-right">
             <div class="search-wrap">
                 <button id="search-icon-btn" type="button" aria-label="Search"><i class="fa-solid fa-magnifying-glass"></i></button>
-                <input type="text" id="search-input" placeholder="Titles, genres" autocomplete="off">
+                <input type="text" id="search-input" placeholder="Titles, people, genres" autocomplete="off">
             </div>
             <button id="search-cancel-btn" type="button" class="search-cancel">Cancel</button>
             <button id="server-btn" type="button" class="nf-icon-btn" title="Choose video server" aria-label="Video server"><i class="fa-solid fa-server"></i></button>
@@ -100,7 +112,7 @@
         <div class="hero-vignette"></div>
         <div class="hero-card"><img id="hero-poster" alt=""><div class="hero-card-fade"></div></div>
         <div id="hero-content" class="hero-content">
-            <div class="hero-kind"><span class="hero-n">S</span><span id="hero-kind-text">SERIES</span></div>
+            <div class="hero-kind"><svg class="hero-n" viewBox="0 0 24 40" aria-hidden="true"><use href="#nf-n"/></svg><span id="hero-kind-text">SERIES</span></div>
             <h1 id="hero-title" class="hero-title">Arcane</h1>
             <p id="hero-tags" class="hero-tags"></p>
             <div class="hero-meta">
@@ -118,9 +130,9 @@
         </div>
     </header>
 
-    <!-- Main Content Container with space-y-20 distance separating hero buttons and recently browsed -->
+    <!-- Main Content Container -->
     <main class="nf-main">
-        
+
         <!-- Search Results Section -->
         <section id="search-results-section" class="px-[4%] hidden">
             <div class="flex items-center justify-between mb-6">
@@ -138,71 +150,53 @@
         </div>
     </main>
 
-    <!-- Detailed Info Modal -->
-    <div id="details-modal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-md opacity-0 pointer-events-none transition-opacity duration-300 p-4">
-        <div id="modal-content-box" class="bg-[#181818] w-full max-w-4xl rounded-xl overflow-hidden shadow-2xl border border-gray-800 transform scale-95 transition-transform duration-300 max-h-[90vh] flex flex-col">
-            <!-- Modal Header Banner -->
-            <div class="relative h-64 md:h-96 w-full bg-cover bg-center" id="modal-banner">
-                <div class="absolute inset-0 bg-gradient-to-t from-[#181818] via-[#181818]/40 to-transparent"></div>
-                <button id="modal-close-btn" class="absolute top-4 right-4 bg-black/60 hover:bg-black text-white w-10 h-10 rounded-full flex items-center justify-center transition border border-gray-700 z-20 cursor-pointer">
-                    <i class="fa-solid fa-xmark text-lg"></i>
-                </button>
-                <div class="absolute bottom-6 left-6 right-6 space-y-2">
-                    <h2 id="modal-title" class="text-3xl md:text-5xl font-black text-white drop-shadow-md">Title</h2>
-                    <div class="flex flex-wrap items-center gap-3 text-sm font-semibold">
-                        <span id="modal-rating" class="text-yellow-400 flex items-center bg-black/60 px-2.5 py-1 rounded border border-yellow-500/30">
-                            <i class="fa-solid fa-star mr-1"></i> IMDb 9.0
-                        </span>
-                        <span id="modal-year" class="text-gray-300">2024</span>
-                        <span id="modal-duration" class="text-gray-300">2h 15m</span>
-                        <span id="modal-genre" class="text-xs bg-netflixRed px-2 py-0.5 rounded text-white font-bold">Action</span>
+    <!-- ============ Details modal (Netflix "More Info" layout) ============ -->
+    <div id="details-modal" class="nfm-overlay opacity-0 pointer-events-none transition-opacity duration-300" role="dialog" aria-modal="true" aria-label="Title details">
+        <div id="modal-content-box" class="nfm transform scale-95 transition-transform duration-300">
+            <div class="nfm-hero" id="modal-banner">
+                <button id="modal-close-btn" type="button" class="nfm-close" aria-label="Close"><i class="fa-solid fa-xmark"></i></button>
+                <div class="nfm-hero-bottom">
+                    <div class="nfm-kind"><svg class="nf-n" viewBox="0 0 24 40" aria-hidden="true"><use href="#nf-n"/></svg><span id="modal-kind">SERIES</span></div>
+                    <h2 id="modal-title" class="nfm-title">Title</h2>
+                    <div class="nfm-actions">
+                        <button id="modal-main-play-btn" type="button" class="nfm-play"><i class="fa-solid fa-play"></i><span id="modal-play-btn-text">Play</span></button>
+                        <button id="modal-list-btn" type="button" class="nfm-circle" title="Add to a list"><i id="modal-list-btn-icon" class="fa-solid fa-plus"></i><span id="modal-list-btn-text" class="sr-only">Add to List</span></button>
+                        <button id="modal-watched-btn" type="button" class="nfm-circle watched-btn" title="Mark as watched"><i class="fa-solid fa-check"></i><span id="modal-watched-btn-text" class="sr-only">Mark as watched</span></button>
                     </div>
                 </div>
             </div>
 
-            <!-- Modal Body Content -->
-            <div class="p-6 md:p-8 overflow-y-auto space-y-6 flex-grow">
-                <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-                    <div class="md:col-span-2 space-y-4">
-                        <p id="modal-synopsis" class="text-gray-300 text-sm md:text-base leading-relaxed">
-                            Synopsis...
-                        </p>
-                        <div class="flex flex-wrap items-center gap-3 pt-2">
-                            <button id="modal-main-play-btn" class="bg-netflixRed hover:bg-red-700 text-white font-bold px-6 py-3 rounded flex items-center space-x-2 transition shadow-lg cursor-pointer">
-                                <i class="fa-solid fa-play"></i>
-                                <span id="modal-play-btn-text">Play</span>
-                            </button>
-                            <button id="modal-list-btn" type="button" class="bg-gray-800 hover:bg-gray-700 text-white font-semibold px-4 py-3 rounded flex items-center space-x-2 transition border border-gray-700 cursor-pointer">
-                                <i id="modal-list-btn-icon" class="fa-solid fa-plus"></i>
-                                <span id="modal-list-btn-text">Add to List</span>
-                            </button>
-                            <button id="modal-watched-btn" type="button" class="watched-btn bg-gray-800 hover:bg-gray-700 text-white font-semibold px-4 py-3 rounded flex items-center space-x-2 transition border border-gray-700 cursor-pointer">
-                                <i class="fa-solid fa-check"></i>
-                                <span id="modal-watched-btn-text">Mark as watched</span>
-                            </button>
+            <div class="nfm-body">
+                <div class="nfm-cols">
+                    <div class="nfm-main">
+                        <div class="nfm-meta">
+                            <span id="modal-match" class="nf-match">98% Match</span>
+                            <span id="modal-year">2024</span>
+                            <span id="modal-duration">2h 15m</span>
+                            <span class="nf-hd">HD</span>
+                            <span id="modal-rating" class="nfm-imdb"><i class="fa-solid fa-star mr-1"></i> IMDb 9.0</span>
                         </div>
+                        <p id="modal-synopsis" class="nfm-syn">Synopsis...</p>
                     </div>
-                    <div class="bg-black/30 p-4 rounded-lg border border-gray-800 space-y-3 text-sm">
-                        <div>
-                            <span class="text-gray-500 block text-xs uppercase tracking-wider mb-1">Cast</span>
-                            <span id="modal-cast" class="text-gray-200 font-medium">Loading cast...</span>
-                        </div>
-                        <div>
-                            <span class="text-gray-500 block text-xs uppercase tracking-wider mb-1">Genres</span>
-                            <span id="modal-genres-list" class="text-gray-200 font-medium">Drama, Sci-Fi</span>
-                        </div>
+                    <div class="nfm-side">
+                        <p><span class="lbl">Cast:</span> <span id="modal-cast">Loading cast...</span></p>
+                        <p><span class="lbl">Genres:</span> <span id="modal-genres-list">Drama, Sci-Fi</span></p>
+                        <p><span class="lbl" id="modal-genre-label">This show is:</span> <span id="modal-genre">Action</span></p>
                     </div>
                 </div>
 
-                <!-- Episodes Section -->
-                <div id="modal-episodes-section" class="hidden space-y-4 pt-4 border-t border-gray-800">
-                    <div class="flex items-center justify-between">
-                        <h3 class="text-xl font-bold text-white">Episodes</h3>
-                        <select id="season-select" class="bg-gray-800 text-white text-sm border border-gray-700 rounded px-3 py-1.5 focus:outline-none">
-                            <option value="1">Season 1</option>
-                        </select>
+                <!-- Episodes -->
+                <div id="modal-episodes-section" class="nfm-eps hidden">
+                    <div class="nfm-eps-head">
+                        <h3>Episodes</h3>
+                        <div class="nfm-select">
+                            <select id="season-select" aria-label="Season">
+                                <option value="1">Season 1</option>
+                            </select>
+                            <i class="fa-solid fa-chevron-down"></i>
+                        </div>
                     </div>
-                    <div id="episodes-list" class="space-y-3">
+                    <div id="episodes-list" class="nfm-ep-list">
                         <!-- Populated dynamically -->
                     </div>
                 </div>
@@ -210,81 +204,56 @@
         </div>
     </div>
 
-    <!-- Video Player Modal: red episodes sidebar + black stage (matches reference image) -->
-    <div id="video-player-modal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/95 backdrop-blur-lg opacity-0 pointer-events-none transition-opacity duration-300 p-0 md:p-4" role="dialog" aria-modal="true" aria-label="Video player">
-        <div class="pl-shell">
+    <!-- ============ Video player (Netflix layout: full-bleed video, fading top bar, episodes flyout) ============ -->
+    <div id="video-player-modal" class="fixed inset-0 z-50 bg-black opacity-0 pointer-events-none transition-opacity duration-300" role="dialog" aria-modal="true" aria-label="Video player">
+        <div id="player-shell" class="npl-shell">
+            <iframe id="video-iframe" src="" allowfullscreen allow="autoplay; fullscreen; picture-in-picture; encrypted-media"></iframe>
+            <div id="player-loading" class="npl-loading is-hidden"><div class="npl-spinner"></div></div>
 
-            <!-- Red Episodes Sidebar -->
-            <aside id="player-sidebar" class="pl-sidebar is-collapsed">
-                <div class="pl-sidebar-inner">
-                    <div class="pl-sidebar-head">
-                        <span>episodes:</span>
-                        <button id="sidebar-collapse-btn" type="button" aria-label="Hide episodes" title="Hide episodes (E)">
-                            <i class="fa-solid fa-chevron-left"></i>
+            <!-- invisible strip: moving the mouse over it brings the top bar back -->
+            <div id="player-hotzone" class="npl-hotzone"></div>
+
+            <div id="player-chrome" class="npl-chrome">
+                <div class="npl-top">
+                    <button id="player-close-btn" type="button" class="npl-icon npl-back" aria-label="Back to browse" title="Back to Browse (Esc)"><i class="fa-solid fa-arrow-left"></i></button>
+                    <div class="npl-title">
+                        <span id="player-title" class="npl-title-main">Now Playing</span>
+                        <span id="player-subtitle" class="npl-title-sub"></span>
+                    </div>
+                    <div class="npl-top-right">
+                        <button id="player-next-top" type="button" class="npl-icon npl-series-only" aria-label="Next episode" title="Next Episode (N)"><i class="fa-solid fa-forward-step"></i></button>
+                        <button id="player-episodes-btn" type="button" class="npl-icon npl-series-only" aria-label="Episodes" title="Episodes (E)">
+                            <svg viewBox="0 0 24 24" aria-hidden="true"><path fill-rule="evenodd" d="M2 3h20v13H2zm2 2v9h16V5z"/><path d="M4 18h16v2H4zm3 3.2h10V23H7z"/></svg>
                         </button>
-                    </div>
-                    <div class="pl-season-wrap">
-                        <select id="player-season-select" aria-label="Season">
-                            <option value="1">Season 1</option>
-                        </select>
-                    </div>
-                    <div id="player-sidebar-episodes-list" class="pl-ep-list no-scrollbar"></div>
-                </div>
-            </aside>
-            <div id="player-sidebar-backdrop" class="pl-backdrop is-hidden"></div>
-
-            <!-- Black stage -->
-            <section class="pl-main">
-                <header class="pl-topbar">
-                    <button id="player-menu-btn" type="button" class="pl-icon-btn" aria-label="Show episodes" title="Episodes (E)">
-                        <i class="fa-solid fa-list"></i>
-                    </button>
-                    <div class="pl-title">
-                        <div id="player-title" class="pl-title-main">Now Playing</div>
-                        <div id="player-subtitle" class="pl-title-sub"></div>
-                    </div>
-                    <button id="player-autoplay-btn" type="button" class="pl-autoplay is-on" title="Autoplay next episode">
-                        <i class="fa-solid fa-forward"></i><span>Autoplay</span><b class="pl-switch"><i></i></b>
-                    </button>
-                    <button id="player-server-btn" type="button" class="pl-icon-btn" aria-label="Switch server" title="Not loading? Switch server">
-                        <i class="fa-solid fa-server"></i>
-                    </button>
-                    <div id="player-top-nav" class="pl-top-nav hidden">
-                        <button id="player-prev-top" type="button" class="pl-icon-btn" aria-label="Previous episode" title="Previous episode (P)"><i class="fa-solid fa-backward-step"></i></button>
-                        <button id="player-next-top" type="button" class="pl-icon-btn pl-icon-primary" aria-label="Next episode" title="Next episode (N)"><i class="fa-solid fa-forward-step"></i></button>
-                    </div>
-                    <button id="player-close-btn" type="button" class="pl-icon-btn" aria-label="Close player" title="Close (Esc)">
-                        <i class="fa-solid fa-xmark"></i>
-                    </button>
-                </header>
-
-                <div class="pl-stage">
-                    <iframe id="video-iframe" src="" allowfullscreen allow="autoplay; fullscreen; picture-in-picture"></iframe>
-                    <div id="player-loading" class="pl-loading is-hidden"><div class="pl-spinner"></div></div>
-                    <div id="up-next" class="up-next hidden">
-                        <div class="up-next-info"><small id="up-next-label">Up next</small><b id="up-next-title"></b></div>
-                        <div class="up-next-actions">
-                            <button id="up-next-play" type="button" class="up-next-play"><i class="fa-solid fa-play"></i> <span id="up-next-play-text">Play now</span></button>
-                            <button id="up-next-cancel" type="button" class="up-next-cancel">Cancel</button>
-                        </div>
+                        <button id="player-server-btn" type="button" class="npl-icon" aria-label="Video server" title="Not playing? Change server or pop-up protection"><i class="fa-solid fa-server"></i></button>
+                        <button id="player-fullscreen-btn" type="button" class="npl-icon" aria-label="Fullscreen" title="Fullscreen (F)"><i class="fa-solid fa-expand"></i></button>
                     </div>
                 </div>
+            </div>
 
-                <footer id="player-controls" class="pl-controls hidden">
-                    <button id="player-prev-btn" type="button" class="pl-nav-btn" title="Previous episode (P)">
-                        <i class="fa-solid fa-backward-step"></i>
-                        <span class="pl-nav-text"><b>Previous</b><small id="prev-label"></small></span>
-                    </button>
-                    <button id="player-episodes-btn" type="button" class="pl-episodes-btn" title="Episodes (E)">
-                        <i class="fa-solid fa-list"></i><span>Episodes</span>
-                    </button>
-                    <button id="player-next-btn" type="button" class="pl-nav-btn primary" title="Next episode (N)">
-                        <span class="pl-nav-text right"><b>Next</b><small id="next-label"></small></span>
-                        <i class="fa-solid fa-forward-step"></i>
-                    </button>
-                </footer>
-            </section>
+            <!-- click anywhere outside the flyout to close it -->
+            <div id="player-scrim" class="npl-scrim"></div>
 
+            <!-- Episodes flyout -->
+            <div id="player-episodes-panel" class="npl-panel is-hidden" role="dialog" aria-label="Episodes">
+                <div class="npl-panel-head">
+                    <button id="npl-panel-back" type="button" class="npl-panel-back">
+                        <i class="fa-solid fa-chevron-left"></i><span id="npl-panel-head-text">Season 1</span>
+                    </button>
+                    <button id="player-autoplay-btn" type="button" class="npl-autoplay is-on" title="Autoplay next episode">
+                        <span>Autoplay</span><b class="npl-switch"><i></i></b>
+                    </button>
+                </div>
+                <div id="player-sidebar-episodes-list" class="npl-ep-list"></div>
+            </div>
+
+            <div id="up-next" class="up-next hidden">
+                <div class="up-next-info"><small id="up-next-label">Up next</small><b id="up-next-title"></b></div>
+                <div class="up-next-actions">
+                    <button id="up-next-play" type="button" class="up-next-play"><i class="fa-solid fa-play"></i> <span id="up-next-play-text">Play now</span></button>
+                    <button id="up-next-cancel" type="button" class="up-next-cancel">Cancel</button>
+                </div>
+            </div>
         </div>
     </div>
 
@@ -302,8 +271,8 @@
                 <label class="flex items-start gap-3 cursor-pointer bg-white/5 border border-gray-700 rounded-lg px-4 py-3">
                     <input id="block-popups-toggle" type="checkbox" class="mt-1 w-4 h-4 accent-red-600" checked>
                     <span>
-                        <span class="block text-sm font-semibold text-white"><i class="fa-solid fa-shield-halved text-netflixRed mr-1.5"></i>Block pop-ups &amp; redirects</span>
-                        <span class="block text-xs text-gray-400 mt-0.5 leading-relaxed">Stops a server from opening new tabs or sending you to another site. If a server says it detects a sandbox or won't play, turn this off.</span>
+                        <span class="block text-sm font-semibold text-white"><i class="fa-solid fa-shield-halved text-netflixRed mr-1.5"></i>Pop-up protection for <span id="protect-server-name">this server</span></span>
+                        <span class="block text-xs text-gray-400 mt-0.5 leading-relaxed">Plays the video inside a locked box (a “sandbox”) so the server can't open ads or redirect you. A few servers refuse to play inside it and show <b class="text-gray-200">“turn off the sandbox”</b>. If you see that message, switch this off. It only changes this one server.</span>
                     </span>
                 </label>
 
@@ -403,9 +372,14 @@
                 <p id="profile-error" class="hidden text-sm text-red-400"></p>
 
                 <div class="flex items-center justify-between pt-1">
-                    <button id="profile-signout-btn" type="button" class="text-sm text-gray-400 hover:text-white transition flex items-center space-x-2">
-                        <i class="fa-solid fa-right-from-bracket"></i><span>Sign out</span>
-                    </button>
+                    <div class="flex items-center gap-5">
+                        <button id="profile-signout-btn" type="button" class="text-sm text-gray-400 hover:text-white transition flex items-center space-x-2">
+                            <i class="fa-solid fa-right-from-bracket"></i><span>Sign out</span>
+                        </button>
+                        <button id="profile-api-btn" type="button" class="text-sm text-gray-400 hover:text-white transition flex items-center space-x-2">
+                            <i class="fa-solid fa-key"></i><span>TMDb key</span>
+                        </button>
+                    </div>
                     <button id="profile-save-btn" type="button" class="bg-netflixRed hover:bg-red-700 text-white font-bold px-6 py-2.5 rounded transition">Save</button>
                 </div>
             </div>
@@ -464,9 +438,6 @@
     <!-- Footer -->
     <footer class="nf-footer bg-[#141414] text-gray-500 py-12 px-4 md:px-12 border-t border-gray-900 mt-12 text-sm">
         <div class="max-w-6xl mx-auto space-y-6">
-            <div class="text-xs text-yellow-500/80 bg-yellow-500/10 border border-yellow-500/20 rounded-lg p-3">
-                <strong>Disclaimer:</strong> This is an open-source educational portfolio project and is not affiliated with, operated by, or endorsed by Netflix, Inc. All movie metadata and artwork are provided by TMDb.
-            </div>
             <div class="flex space-x-6 text-lg text-gray-400">
                 <a href="#" class="hover:text-white transition"><i class="fa-brands fa-facebook-f"></i></a>
                 <a href="#" class="hover:text-white transition"><i class="fa-brands fa-instagram"></i></a>
@@ -496,7 +467,7 @@
                 </div>
             </div>
             <div class="pt-4 text-xs text-gray-600">
-                &copy; 2026 Movie Explorer Explorer, Inc. All rights reserved.
+                &copy; 2026 Netflix IMDb Explorer, Inc. All rights reserved.
             </div>
         </div>
     </footer>
@@ -504,9 +475,9 @@
     <!-- Phone bottom tab bar -->
     <nav id="bottom-nav" class="bottom-nav" aria-label="Main">
         <button type="button" data-nav="home" class="is-active"><i class="fa-solid fa-house"></i><span>Home</span></button>
-        <button type="button" data-nav="search"><i class="fa-solid fa-magnifying-glass"></i><span>Search</span></button>
+        <button type="button" data-nav="hot"><i class="fa-regular fa-circle-play"></i><span>New &amp; Hot</span></button>
         <button type="button" data-nav="lists"><i class="fa-solid fa-bookmark"></i><span>My List</span></button>
-        <button type="button" data-nav="profile"><span id="tab-avatar" class="tab-avatar"><i class="fa-solid fa-user"></i></span><span>Profile</span></button>
+        <button type="button" data-nav="profile"><span id="tab-avatar" class="tab-avatar"><i class="fa-solid fa-user"></i></span><span>My Netflix</span></button>
     </nav>
 
     <!-- Firebase (Auth + Firestore) -->

@@ -8,7 +8,8 @@ const CONFIG = {
     publicDemoKey: '2993855ff9655e88d076d338f71295fc',
     tmdbBaseUrl: 'https://api.themoviedb.org/3',
     imageBaseUrl: 'https://image.tmdb.org/t/p/original',
-    posterBaseUrl: 'https://image.tmdb.org/t/p/w500'
+    posterBaseUrl: 'https://image.tmdb.org/t/p/w500',
+    stillBaseUrl: 'https://image.tmdb.org/t/p/w300'   // episode thumbnails
 };
 
 
@@ -29,12 +30,12 @@ const SERVER_PRESETS = [
 
 // =====================================================================
 // FIREBASE CONFIG — paste yours here
-// Firebase console → Project settings → General → Your apps → Web app
+// Firebase console → Project settings → General → Your apps → Web app → "SDK setup and configuration"
+// (These values are safe to be public; your Firestore security rules protect the data.)
 // =====================================================================
 const FIREBASE_CONFIG = {
     apiKey: "AIzaSyDP7sKFk-8qFDBLaHMHBaZrVr-wUm8faZs",
     authDomain: "netflixxlone-528de.firebaseapp.com",
-    databaseURL: "https://netflixxlone-528de-default-rtdb.firebaseio.com",
     projectId: "netflixxlone-528de",
     storageBucket: "netflixxlone-528de.firebasestorage.app",
     messagingSenderId: "324468746158",
@@ -332,11 +333,14 @@ async function openModal(id) {
     const modal = document.getElementById('details-modal');
     const box = document.getElementById('modal-content-box');
 
-    document.getElementById('modal-banner').style.backgroundImage = `url('${item.banner}')`;
+    document.getElementById('modal-banner').style.backgroundImage = `url('${modalBannerFor(item)}')`;
+    document.getElementById('modal-kind').textContent = item.type === 'series' ? 'SERIES' : 'FILM';
     document.getElementById('modal-title').textContent = item.title;
+    document.getElementById('modal-match').textContent = `${matchPct(item)}% Match`;
     document.getElementById('modal-rating').innerHTML = `<i class="fa-solid fa-star mr-1"></i> IMDb ${item.rating}`;
     document.getElementById('modal-year').textContent = item.year;
     document.getElementById('modal-duration').textContent = item.duration;
+    document.getElementById('modal-genre-label').textContent = item.type === 'series' ? 'This show is:' : 'This movie is:';
     document.getElementById('modal-genre').textContent = item.genre;
     document.getElementById('modal-synopsis').textContent = item.synopsis;
     document.getElementById('modal-cast').textContent = item.cast;
@@ -363,7 +367,16 @@ async function openModal(id) {
     modal.classList.remove('opacity-0', 'pointer-events-none');
     box.classList.remove('scale-95');
     box.classList.add('scale-100');
+    modal.scrollTop = 0;
+    box.scrollTop = 0;
     document.body.style.overflow = 'hidden';
+}
+
+// Backdrop for the details pop-up: a sharp-enough size instead of TMDb's multi-megabyte "original"
+function modalBannerFor(item) {
+    return String(item.banner || item.poster || '')
+        .replace(/\/t\/p\/(original|w\d+)\//, '/t/p/w1280/')
+        .replace(/'/g, '%27');
 }
 
 function setupSeasonsDropdown(tvId, count) {
@@ -375,63 +388,70 @@ function setupSeasonsDropdown(tvId, count) {
         opt.textContent = `Season ${s}`;
         seasonSelect.appendChild(opt);
     }
-    loadEpisodesForSeason(tvId, 1);
+    // open on the season you're watching (like Netflix), otherwise season 1
+    const w = watchEntry(tvId);
+    const start = (w && w.updated && w.season >= 1 && w.season <= count) ? w.season : 1;
+    seasonSelect.value = String(start);
+    loadEpisodesForSeason(tvId, start);
+}
+
+let epListToken = 0;
+
+function episodeRowHtml(tvId, seasonNum, ep, current, fallbackImg) {
+    const n = ep.episode_number;
+    const still = ep.still_path ? `${CONFIG.stillBaseUrl}${ep.still_path}` : fallbackImg;
+    const w = watchEntry(tvId);
+    let frac = 0;
+    if (isEpWatched(tvId, seasonNum, n)) frac = 1;
+    else if (w && w.season === seasonNum && w.episode === n && w.dur > 0 && w.t > 5) frac = Math.min(1, w.t / w.dur);
+    const mins = ep.runtime ? `${ep.runtime}m` : '';
+    return `
+        <div class="nfm-ep ${current ? 'is-current' : ''}" onclick="playEpisode('${tvId}', '${seasonNum}', '${n}')">
+            <div class="nfm-ep-num">${n}</div>
+            <div class="nfm-ep-thumb">
+                ${still ? `<img src="${escapeHtml(still)}" alt="" loading="lazy" onerror="this.style.display='none'">` : ''}
+                <div class="nfm-ep-play"><span><i class="fa-solid fa-play"></i></span></div>
+                ${frac > 0 ? `<div class="nfm-ep-prog"><i style="width:${Math.round(frac * 100)}%"></i></div>` : ''}
+            </div>
+            <div class="nfm-ep-body">
+                <div class="nfm-ep-top"><h4><span class="nfm-ep-n">${n}. </span>${escapeHtml(ep.name || 'Episode ' + n)}</h4><span>${mins}</span></div>
+                <p>${escapeHtml(ep.overview || 'No description available.')}</p>
+            </div>
+        </div>`;
 }
 
 async function loadEpisodesForSeason(tvId, seasonNum) {
+    seasonNum = Number(seasonNum) || 1;
     const episodesList = document.getElementById('episodes-list');
-    episodesList.innerHTML = `<div class="py-4 text-center text-gray-400 text-sm">Loading episodes for Season ${seasonNum}...</div>`;
+    const token = ++epListToken;
+    episodesList.classList.remove('is-collapsed');
+    episodesList.innerHTML = `<div class="nfm-ep-loading">Loading episodes…</div>`;
 
-    if (String(tvId).startsWith('f')) {
-        episodesList.innerHTML = `
-            <div onclick="playEpisode('${tvId}', '${seasonNum}', '1', 'Pilot')" class="flex items-center justify-between p-3 bg-black/40 hover:bg-black/70 rounded-lg text-sm text-gray-300 border border-gray-800 transition cursor-pointer group">
-                <div class="flex items-center space-x-3">
-                    <span class="text-gray-400 font-bold">1</span>
-                    <div>
-                        <h4 class="font-semibold text-white group-hover:text-netflixRed transition">Episode 1: Pilot</h4>
-                        <p class="text-xs text-gray-400">The journey begins in Season ${seasonNum}, Episode 1.</p>
-                    </div>
-                </div>
-                <div class="flex items-center space-x-3">
-                    <span class="text-xs text-gray-500">45m</span>
-                    <div class="bg-white/10 group-hover:bg-netflixRed text-white w-7 h-7 rounded-full flex items-center justify-center transition">
-                        <i class="fa-solid fa-play text-xs"></i>
-                    </div>
-                </div>
-            </div>
-        `;
+    const eps = await fetchSeason(tvId, seasonNum);
+    if (token !== epListToken) return;      // another season / title was opened meanwhile
+
+    if (!eps.length) {
+        episodesList.innerHTML = `<div class="nfm-ep-loading">No episodes available right now.</div>`;
         return;
     }
 
-    try {
-        const res = await fetch(`${CONFIG.tmdbBaseUrl}/tv/${tvId}/season/${seasonNum}?api_key=${userApiKey}`);
-        const data = await res.json();
-        
-        if (data.episodes && data.episodes.length > 0) {
-            episodesList.innerHTML = data.episodes.map(ep => `
-                <div onclick="playEpisode('${tvId}', '${seasonNum}', '${ep.episode_number}')" class="flex items-center justify-between p-3 bg-black/40 hover:bg-black/70 rounded-lg text-sm text-gray-300 border border-gray-800 transition cursor-pointer group">
-                    <div class="flex items-center space-x-3 pr-2">
-                        <span class="text-gray-400 font-bold w-6 text-center">${ep.episode_number}</span>
-                        <div>
-                            <h4 class="font-semibold text-white group-hover:text-netflixRed transition">Episode ${ep.episode_number}: ${ep.name || 'Untitled'}</h4>
-                            <p class="text-xs text-gray-400 line-clamp-1">${ep.overview || 'No description available.'}</p>
-                        </div>
-                    </div>
-                    <div class="flex items-center space-x-3 flex-shrink-0">
-                        ${isEpWatched(tvId, seasonNum, ep.episode_number) ? '<i class="fa-solid fa-circle-check ep-watched" title="Watched"></i>' : ''}
-                        <span class="text-xs text-gray-500">${ep.runtime ? ep.runtime + 'm' : '40m'}</span>
-                        <div class="bg-white/10 group-hover:bg-netflixRed text-white w-7 h-7 rounded-full flex items-center justify-center transition">
-                            <i class="fa-solid fa-play text-xs"></i>
-                        </div>
-                    </div>
-                </div>
-            `).join('');
-        } else {
-            episodesList.innerHTML = `<div class="py-4 text-center text-gray-400 text-sm">No episodes available for this season.</div>`;
-        }
-    } catch (err) {
-        episodesList.innerHTML = `<div class="py-4 text-center text-red-400 text-sm">Could not load episodes.</div>`;
-    }
+    const item = getMedia(tvId);
+    const fallbackImg = item ? bannerFor(item) : '';
+    const w = watchEntry(tvId);
+    const cur = (w && w.updated) ? { s: w.season, e: w.episode } : { s: 1, e: 1 };
+    const curIdx = cur.s === seasonNum ? eps.findIndex(x => x.episode_number === cur.e) : -1;
+    const long = eps.length > 10;
+    const collapsed = long && !(curIdx >= 10);
+
+    episodesList.innerHTML = eps.map((ep, i) => episodeRowHtml(tvId, seasonNum, ep, i === curIdx, fallbackImg)).join('') +
+        (long ? `<button type="button" class="nfm-ep-more" onclick="toggleEpisodeList(this)" aria-label="Show more episodes"><i class="fa-solid fa-chevron-${collapsed ? 'down' : 'up'}"></i></button>` : '');
+    episodesList.classList.toggle('is-collapsed', collapsed);
+}
+
+function toggleEpisodeList(btn) {
+    const list = document.getElementById('episodes-list');
+    const collapsed = list.classList.toggle('is-collapsed');
+    btn.innerHTML = `<i class="fa-solid fa-chevron-${collapsed ? 'down' : 'up'}"></i>`;
 }
 
 // =====================================================================
@@ -451,7 +471,8 @@ let player = {
     totalSeasons: 1,
     token: 0,          // bumps on every navigation so stale async results are ignored
     startAt: 0,        // seconds to resume from on the next load
-    loadTimer: null
+    loadTimer: null,
+    panelView: 'episodes'   // what the episodes flyout shows: 'episodes' or 'seasons'
 };
 
 const plEl = (id) => document.getElementById(id);
@@ -513,23 +534,21 @@ async function openVideoPlayer(url, titleText, item, activeSeason = 1, activeEpi
         episode: Number(activeEpisode) || 1,
         viewSeason: season,
         totalSeasons: (item && item.seasonsCount) || 1,
+        panelView: 'episodes',
         startAt: Number(startAt) || 0,
         token: player.token + 1
     };
 
     plEl('player-title').textContent = player.title;
     plEl('player-subtitle').textContent = '';
-    plEl('player-controls').classList.toggle('hidden', !isSeries);
-    plEl('player-top-nav').classList.toggle('hidden', !isSeries);
-    plEl('player-autoplay-btn').classList.toggle('hidden', !isSeries);
-    plEl('player-menu-btn').classList.toggle('hidden', !isSeries);
-    plEl('player-sidebar').classList.toggle('hidden', !isSeries);
+    plEl('player-shell').classList.toggle('is-series', isSeries);
 
     plEl('video-player-modal').classList.remove('opacity-0', 'pointer-events-none');
     document.body.style.overflow = 'hidden';
+    setPlayerSidebar(false);
+    showChrome();
 
     if (!isSeries) {
-        setPlayerSidebar(false);
         const t0 = player.startAt;
         player.startAt = 0;
         setPlayerSource(url, t0);
@@ -538,7 +557,6 @@ async function openVideoPlayer(url, titleText, item, activeSeason = 1, activeEpi
     }
 
     setupPlayerSeasonsDropdown();
-    setPlayerSidebar(isDesktop());
     await loadEpisode(player.season, player.episode);
 }
 
@@ -548,22 +566,23 @@ async function loadEpisode(season, episode) {
     player.season = season;
     player.episode = episode;
     player.viewSeason = season;
+    player.panelView = 'episodes';
 
     const startAt = player.startAt || 0;
     player.startAt = 0;
     setPlayerSource(episodeUrl(player.tvId, season, episode), startAt);
     noteStarted(startAt);
-    plEl('player-subtitle').textContent = `Season ${season} · Episode ${episode}`;
+    plEl('player-subtitle').textContent = `S${season}:E${episode}`;
     syncSeasonSelect();
     setNavButtons(false, false, '', '');
-    plEl('player-sidebar-episodes-list').innerHTML = `<div class="pl-empty">Loading…</div>`;
+    plEl('player-sidebar-episodes-list').innerHTML = `<div class="npl-empty">Loading…</div>`;
 
     const eps = await fetchSeason(player.tvId, season);
     if (token !== player.token) return;
 
     const current = eps.find(e => e.episode_number === episode);
     plEl('player-subtitle').textContent =
-        `Season ${season} · Episode ${episode}` + (current && current.name ? ` — ${current.name}` : '');
+        `S${season}:E${episode}` + (current && current.name ? ` “${current.name}”` : '');
 
     updateNavButtons(eps);
     renderSidebarEpisodes(eps, season);
@@ -591,12 +610,10 @@ function updateNavButtons(eps) {
 }
 
 function setNavButtons(hasPrev, hasNext, prevText, nextText) {
-    plEl('player-prev-btn').disabled = !hasPrev;
-    plEl('player-next-btn').disabled = !hasNext;
-    plEl('player-prev-top').disabled = !hasPrev;
-    plEl('player-next-top').disabled = !hasNext;
-    plEl('prev-label').textContent = prevText;
-    plEl('next-label').textContent = nextText;
+    player.hasPrev = hasPrev;
+    const next = plEl('player-next-top');
+    next.disabled = !hasNext;
+    next.title = hasNext ? `Next Episode${nextText ? ': ' + nextText : ''} (N)` : 'No next episode';
 }
 
 // dir: +1 = next episode, -1 = previous episode. Crosses season boundaries.
@@ -610,68 +627,157 @@ async function stepEpisode(dir) {
 function playNextEpisode() { stepEpisode(1); }
 function playPrevEpisode() { stepEpisode(-1); }
 
-// ---- Sidebar -------------------------------------------------------
+// ---- Episodes flyout (Netflix-style) -------------------------------
+const panelOpen = () => !plEl('player-episodes-panel').classList.contains('is-hidden');
+
 function setupPlayerSeasonsDropdown() {
-    const select = plEl('player-season-select');
-    select.innerHTML = '';
-    for (let s = 1; s <= player.totalSeasons; s++) {
-        const opt = document.createElement('option');
-        opt.value = s;
-        opt.textContent = `Season ${s}`;
-        select.appendChild(opt);
-    }
-    select.value = player.season;
+    player.panelView = 'episodes';
+    renderPanelHead();
 }
 
-function syncSeasonSelect() {
-    const select = plEl('player-season-select');
-    if (select) select.value = player.viewSeason;
+function syncSeasonSelect() { renderPanelHead(); }
+
+function renderPanelHead() {
+    const back = plEl('npl-panel-back');
+    const text = plEl('npl-panel-head-text');
+    const multi = player.totalSeasons > 1;
+    if (player.panelView === 'seasons') {
+        text.textContent = player.title;
+        back.classList.add('is-static');
+    } else {
+        text.textContent = multi ? `Season ${player.viewSeason}` : player.title;
+        back.classList.toggle('is-static', !multi);
+    }
+}
+
+function renderSeasonPicker() {
+    player.panelView = 'seasons';
+    renderPanelHead();
+    let html = '';
+    for (let s = 1; s <= player.totalSeasons; s++) {
+        html += `<div class="npl-season-row ${s === player.season ? 'is-current' : ''}" role="button" tabindex="0" data-season-pick="${s}"><span>Season ${s}</span><i class="fa-solid fa-chevron-right"></i></div>`;
+    }
+    plEl('player-sidebar-episodes-list').innerHTML = html;
+}
+
+function currentEpisodeFraction() {
+    if (playerRT.dur > 0) return Math.min(1, playerRT.time / playerRT.dur);
+    const w = watchEntry(player.tvId);
+    if (w && w.season === player.season && w.episode === player.episode && w.dur > 0 && w.t > 5) return Math.min(1, w.t / w.dur);
+    return 0;
+}
+
+// scrolls only the flyout list (scrollIntoView could also move the page behind it)
+function scrollActiveEpisodeIntoView() {
+    const list = plEl('player-sidebar-episodes-list');
+    const el = list.querySelector('.is-active');
+    if (!el) return;
+    const lr = list.getBoundingClientRect(), er = el.getBoundingClientRect();
+    list.scrollTop += (er.top - lr.top) - (lr.height - er.height) / 2;
 }
 
 function renderSidebarEpisodes(eps, seasonNum) {
-    if (player.viewSeason !== seasonNum) return;   // user switched seasons meanwhile
+    if (player.viewSeason !== seasonNum || player.panelView !== 'episodes') return;   // user moved on meanwhile
     const list = plEl('player-sidebar-episodes-list');
 
     if (!eps.length) {
-        list.innerHTML = `<div class="pl-empty">No episodes found for this season.</div>`;
+        list.innerHTML = `<div class="npl-empty">No episodes found for this season.</div>`;
         return;
     }
 
     list.innerHTML = eps.map(ep => {
-        const active = seasonNum === player.season && ep.episode_number === player.episode;
+        const n = ep.episode_number;
+        const active = seasonNum === player.season && n === player.episode;
+        const watched = isEpWatched(player.tvId, seasonNum, n);
+        const mins = ep.runtime ? `${ep.runtime}m` : '';
+        let expand = '';
+        if (active) {
+            const still = ep.still_path ? `${CONFIG.stillBaseUrl}${ep.still_path}` : '';
+            const frac = currentEpisodeFraction();
+            const bar = frac > 0 ? `<div class="npl-ep-prog"><i style="width:${Math.round(frac * 100)}%"></i></div>` : '';
+            expand = `
+                <div class="npl-ep-expand">
+                    ${still ? `<div class="npl-ep-thumb"><img src="${escapeHtml(still)}" alt="" onerror="this.parentNode.style.display='none'">${bar}</div>` : ''}
+                    <p>${escapeHtml(ep.overview || '')}</p>
+                </div>`;
+        }
         return `
-            <button type="button" class="pl-ep ${active ? 'is-active' : ''}" data-season="${seasonNum}" data-ep="${ep.episode_number}">
-                <span class="pl-ep-num">${ep.episode_number}</span>
-                <span class="pl-ep-info">
-                    <b>${escapeHtml(ep.name || 'Episode ' + ep.episode_number)}</b>
-                    <small>${ep.runtime ? ep.runtime + ' min' : '40 min'}</small>
-                </span>
-                <span class="pl-ep-check ${isEpWatched(player.tvId, seasonNum, ep.episode_number) ? 'is-on' : ''}" data-check="${ep.episode_number}" data-cseason="${seasonNum}" title="Mark as watched"><i class="fa-solid fa-circle-check"></i></span>
-                <i class="fa-solid fa-play"></i>
-            </button>`;
+            <div class="npl-ep ${active ? 'is-active' : ''}" role="button" tabindex="0" data-season="${seasonNum}" data-ep="${n}">
+                <span class="npl-ep-num">${n}</span>
+                <div class="npl-ep-main">
+                    <div class="npl-ep-line">
+                        <b>${escapeHtml(ep.name || 'Episode ' + n)}</b><small>${mins}</small>
+                        <span class="npl-ep-check ${watched ? 'is-on' : ''}" data-check="${n}" data-cseason="${seasonNum}" title="Mark as watched"><i class="fa-solid fa-circle-check"></i></span>
+                    </div>
+                    ${expand}
+                </div>
+            </div>`;
     }).join('');
 
-    const activeEl = list.querySelector('.is-active');
-    if (activeEl) activeEl.scrollIntoView({ block: 'center' });
+    scrollActiveEpisodeIntoView();
 }
 
 async function showSeasonInSidebar(seasonNum) {
     player.viewSeason = seasonNum;
-    plEl('player-sidebar-episodes-list').innerHTML = `<div class="pl-empty">Loading…</div>`;
+    player.panelView = 'episodes';
+    renderPanelHead();
+    plEl('player-sidebar-episodes-list').innerHTML = `<div class="npl-empty">Loading…</div>`;
     const eps = await fetchSeason(player.tvId, seasonNum);
     renderSidebarEpisodes(eps, seasonNum);
 }
 
 function setPlayerSidebar(open) {
-    plEl('player-sidebar').classList.toggle('is-collapsed', !open);
-    plEl('player-sidebar-backdrop').classList.toggle('is-hidden', !open);
-    plEl('sidebar-collapse-btn').querySelector('i').className =
-        `fa-solid ${open ? 'fa-chevron-left' : 'fa-chevron-right'}`;
+    plEl('player-episodes-panel').classList.toggle('is-hidden', !open);
+    plEl('player-scrim').classList.toggle('is-on', open);
+    plEl('player-episodes-btn').classList.toggle('is-open', open);
+    if (open) {
+        if (player.viewSeason !== player.season || player.panelView !== 'episodes') showSeasonInSidebar(player.season);
+        else scrollActiveEpisodeIntoView();
+        showChrome();
+    } else {
+        scheduleChromeHide();
+    }
 }
 
 function togglePlayerSidebar() {
     if (!player.isSeries) return;
-    setPlayerSidebar(plEl('player-sidebar').classList.contains('is-collapsed'));
+    setPlayerSidebar(!panelOpen());
+}
+
+// ---- Top bar that fades out after a few seconds, like Netflix ----
+let chromeTimer = null;
+function showChrome() {
+    const shell = plEl('player-shell');
+    if (!shell) return;
+    shell.classList.add('chrome-on');
+    scheduleChromeHide();
+}
+function scheduleChromeHide() {
+    clearTimeout(chromeTimer);
+    chromeTimer = setTimeout(() => {
+        const serverOpen = !byId('server-modal').classList.contains('pointer-events-none');
+        if (panelOpen() || serverOpen) { scheduleChromeHide(); return; }
+        plEl('player-shell').classList.remove('chrome-on');
+    }, 3500);
+}
+
+// ---- Fullscreen (whole page, so the server picker and toasts stay visible) ----
+const fullscreenSupported = () => !!(document.fullscreenEnabled || document.webkitFullscreenEnabled);
+const inFullscreen = () => !!(document.fullscreenElement || document.webkitFullscreenElement);
+function toggleFullscreen() {
+    try {
+        let r;
+        if (inFullscreen()) r = (document.exitFullscreen || document.webkitExitFullscreen).call(document);
+        else {
+            const root = document.documentElement;
+            r = (root.requestFullscreen || root.webkitRequestFullscreen).call(root);
+        }
+        if (r && r.catch) r.catch(() => {});
+    } catch (e) { /* not supported here */ }
+}
+function syncFullscreenBtn() {
+    const i = plEl('player-fullscreen-btn').querySelector('i');
+    if (i) i.className = `fa-solid ${inFullscreen() ? 'fa-compress' : 'fa-expand'}`;
 }
 
 // ---- Iframe / lifecycle -------------------------------------------
@@ -689,26 +795,30 @@ function setPlayerSource(url, startAt = 0) {
 }
 
 function initVideoPlayerModal() {
-    const modal = plEl('video-player-modal');
+    const shell = plEl('player-shell');
+    const list = plEl('player-sidebar-episodes-list');
 
     plEl('player-close-btn').addEventListener('click', closeVideoPlayer);
-    modal.addEventListener('click', (e) => { if (e.target === modal) closeVideoPlayer(); });
-
-    plEl('sidebar-collapse-btn').addEventListener('click', togglePlayerSidebar);
-    plEl('player-menu-btn').addEventListener('click', togglePlayerSidebar);
     plEl('player-episodes-btn').addEventListener('click', togglePlayerSidebar);
-    plEl('player-sidebar-backdrop').addEventListener('click', () => setPlayerSidebar(false));
-
-    plEl('player-prev-btn').addEventListener('click', playPrevEpisode);
-    plEl('player-prev-top').addEventListener('click', playPrevEpisode);
+    plEl('player-scrim').addEventListener('click', () => setPlayerSidebar(false));
     plEl('player-next-top').addEventListener('click', playNextEpisode);
-    plEl('player-next-btn').addEventListener('click', playNextEpisode);
+    plEl('player-fullscreen-btn').addEventListener('click', toggleFullscreen);
+    if (!fullscreenSupported()) plEl('player-fullscreen-btn').style.display = 'none';
+    document.addEventListener('fullscreenchange', syncFullscreenBtn);
+    document.addEventListener('webkitfullscreenchange', syncFullscreenBtn);
 
-    plEl('player-season-select').addEventListener('change', (e) => {
-        if (player.isSeries) showSeasonInSidebar(Number(e.target.value));
+    // "< Season 2" in the flyout header opens the season list
+    plEl('npl-panel-back').addEventListener('click', () => {
+        if (player.totalSeasons > 1 && player.panelView === 'episodes') renderSeasonPicker();
     });
 
-    plEl('player-sidebar-episodes-list').addEventListener('click', (e) => {
+    // moving the mouse / touching our overlay brings the top bar back
+    shell.addEventListener('mousemove', showChrome);
+    shell.addEventListener('touchstart', showChrome, { passive: true });
+
+    list.addEventListener('click', (e) => {
+        const pick = e.target.closest('[data-season-pick]');
+        if (pick) { showSeasonInSidebar(Number(pick.dataset.seasonPick)); return; }
         const check = e.target.closest('[data-check]');
         if (check) {
             e.stopPropagation();
@@ -718,19 +828,29 @@ function initVideoPlayerModal() {
         const row = e.target.closest('[data-ep]');
         if (!row) return;
         loadEpisode(Number(row.dataset.season), Number(row.dataset.ep));
-        if (!isDesktop()) setPlayerSidebar(false);
+        setPlayerSidebar(false);
+    });
+    list.addEventListener('keydown', (e) => {
+        if (e.key !== 'Enter' && e.key !== ' ') return;
+        const row = e.target.closest('.npl-ep, .npl-season-row');
+        if (row && e.target === row) { e.preventDefault(); row.click(); }
     });
 
     document.addEventListener('keydown', (e) => {
         if (!player.open) return;
         if (e.key === 'Escape') {
             if (!byId('server-modal').classList.contains('pointer-events-none')) return;
+            if (panelOpen()) { setPlayerSidebar(false); return; }
+            if (inFullscreen()) return;          // the browser leaves fullscreen first
             closeVideoPlayer();
             return;
         }
-        if (!player.isSeries || e.ctrlKey || e.metaKey || e.altKey) return;
+        showChrome();
+        if (e.ctrlKey || e.metaKey || e.altKey) return;
         if (e.target.matches && e.target.matches('input, textarea, select')) return;
         const k = e.key.toLowerCase();
+        if (k === 'f') { toggleFullscreen(); return; }
+        if (!player.isSeries) return;
         if (k === 'n') playNextEpisode();
         else if (k === 'p') playPrevEpisode();
         else if (k === 'e') togglePlayerSidebar();
@@ -744,6 +864,10 @@ function closeVideoPlayer() {
     player.open = false;
     player.token++;              // cancel any in-flight episode loads
     resetPlayerRuntime();
+    if (inFullscreen()) toggleFullscreen();
+    setPlayerSidebar(false);
+    clearTimeout(chromeTimer);
+    plEl('player-shell').classList.remove('chrome-on');
 
     plEl('video-player-modal').classList.add('opacity-0', 'pointer-events-none');
     iframe.onload = null;
@@ -1074,6 +1198,7 @@ function renderNavAccount() {
         if (byId('tab-avatar')) byId('tab-avatar').innerHTML = '<i class="fa-solid fa-user"></i>';
         nm.textContent = 'Sign in';
     }
+    updateNavTitle();
 }
 
 async function signOutNow() {
@@ -1613,6 +1738,7 @@ function wireAccountUI() {
     byId('profile-save-btn').addEventListener('click', saveProfile);
     byId('profile-name').addEventListener('keydown', (e) => { if (e.key === 'Enter') saveProfile(); });
     byId('profile-signout-btn').addEventListener('click', signOutNow);
+    byId('profile-api-btn').addEventListener('click', () => { closeOverlay('profile-modal'); byId('api-key-modal-btn').click(); });
     byId('profile-upgrade-btn').addEventListener('click', () => {
         closeOverlay('profile-modal');
         openAuthModal('signup', 'Create an account to keep your lists and use them on any device.');
@@ -1696,9 +1822,11 @@ let customServers = [];
 // ---- Pop-up / redirect blocking ----
 // A sandboxed iframe can't open new tabs/windows or navigate the page you're on
 // (no allow-popups / allow-top-navigation), which is what ad-heavy servers abuse.
-const BLOCK_POPUPS_KEY = 'nx_block_popups';
+const UNPROTECTED_KEY = 'nx_unprotected_servers';   // servers the person switched pop-up protection off for
 const SANDBOX_FLAGS = 'allow-scripts allow-same-origin allow-forms allow-presentation';
-const popupsBlocked = () => localStorage.getItem(BLOCK_POPUPS_KEY) !== '0';
+let unprotectedServers = new Set();
+try { unprotectedServers = new Set(JSON.parse(localStorage.getItem(UNPROTECTED_KEY) || '[]')); } catch (e) { unprotectedServers = new Set(); }
+const popupsBlocked = () => !unprotectedServers.has(hostOf(CONFIG.domain));
 
 function applyIframeSandbox() {
     const frame = byId('video-iframe');
@@ -1778,12 +1906,13 @@ function initServers() {
     });
 
     const toggle = byId('block-popups-toggle');
-    toggle.checked = popupsBlocked();
     toggle.addEventListener('change', () => {
-        try { localStorage.setItem(BLOCK_POPUPS_KEY, toggle.checked ? '1' : '0'); } catch (e) {}
+        const host = hostOf(CONFIG.domain);
+        if (toggle.checked) unprotectedServers.delete(host); else unprotectedServers.add(host);
+        try { localStorage.setItem(UNPROTECTED_KEY, JSON.stringify([...unprotectedServers])); } catch (e) {}
         applyIframeSandbox();
         reloadPlayerSource();   // sandbox changes only apply after a reload
-        showToast(toggle.checked ? 'Pop-up blocking on' : 'Pop-up blocking off');
+        showToast(toggle.checked ? 'Pop-up protection on' : 'Pop-up protection off for this server');
     });
 
     applyIframeSandbox();
@@ -1809,6 +1938,13 @@ function renderServerList() {
                 ${s.custom ? `<button type="button" class="server-del" data-del="${escapeHtml(s.url)}" title="Remove server"><i class="fa-solid fa-trash"></i></button>` : ''}
             </div>`;
     }).join('');
+    const toggle = byId('block-popups-toggle');
+    if (toggle) toggle.checked = popupsBlocked();
+    const nm = byId('protect-server-name');
+    if (nm) {
+        const cur = getAllServers().find(x => x.url === CONFIG.domain);
+        nm.textContent = cur ? cur.name : hostOf(CONFIG.domain);
+    }
 }
 
 function setServer(url, silent = false) {
@@ -1877,7 +2013,11 @@ const genreNames = (ids) => (ids || []).map(id => GENRE_NAMES[id]).filter(Boolea
 // Servers whose player understands a "start at" URL parameter (verified: VidLink).
 // Add more like: 'your-domain.com': { startParam: 't' }
 const SERVER_TRAITS = {
-    'vidlink.pro': { startParam: 'startAt' }
+    // VidLink documents these URL options: red theme to match Netflix, and hide its own title/next button (ours are in the top bar)
+    'vidlink.pro': {
+        startParam: 'startAt',
+        params: { primaryColor: 'E50914', secondaryColor: '6d6d6e', iconColor: 'ffffff', title: 'false', poster: 'false', autoplay: 'true', nextbutton: 'false' }
+    }
 };
 
 // ---------------------------------------------------------------------
@@ -2138,9 +2278,9 @@ function playLabelFor(item) {
     if (w && w.finished) return 'Watch again';
     if (item.type === 'series') {
         if (w && w.updated) return `Resume S${w.season}:E${w.episode}`;
-        return 'Play Season 1 Ep 1';
+        return 'Play';
     }
-    return w && w.t > 10 ? `Resume at ${fmtTime(w.t)}` : 'Play Movie';
+    return w && w.t > 10 ? `Resume at ${fmtTime(w.t)}` : 'Play';
 }
 
 function setHomeFilter(filter) {
@@ -2149,9 +2289,8 @@ function setHomeFilter(filter) {
     document.querySelectorAll('[data-filter]').forEach(el => {
         el.classList.toggle('is-active', el.dataset.filter === filter);
     });
-    setBottomActive('home');
-    const title = document.getElementById('nav-title');
-    if (title) title.textContent = { all: 'Home', series: 'TV Shows', movie: 'Movies', popular: 'New & Hot' }[filter] || 'Home';
+    setBottomActive(filter === 'popular' ? 'hot' : 'home');
+    updateNavTitle();
     document.getElementById('nav-chips').classList.toggle('has-filter', filter !== 'all');
     renderHero();
     renderCategories();
@@ -2209,7 +2348,7 @@ async function playMedia(item, opts = {}) {
     if (item.type !== 'series') {
         const t = (!fromStart && w && w.t > 10) ? w.t : 0;
         closeModal();
-        openVideoPlayer(movieUrl(item.id), `${item.title} (Movie)`, item, 1, 1, t);
+        openVideoPlayer(movieUrl(item.id), item.title, item, 1, 1, t);
         return;
     }
 
@@ -2296,9 +2435,10 @@ function serverTrait(url) {
 }
 function withStartTime(url, t) {
     const trait = serverTrait(url);
-    if (!trait || !trait.startParam || !(t >= 10)) return url;
+    if (!trait) return url;
     const u = new URL(url);
-    u.searchParams.set(trait.startParam, String(Math.floor(t)));
+    if (trait.params) Object.entries(trait.params).forEach(([k, v]) => u.searchParams.set(k, v));
+    if (trait.startParam && t >= 10) u.searchParams.set(trait.startParam, String(Math.floor(t)));
     return u.toString();
 }
 
@@ -2559,7 +2699,7 @@ function initUI() {
     };
     const closeSearch = () => {
         nav.classList.remove('search-open');
-        setBottomActive('home');
+        setBottomActive(homeFilter === 'popular' ? 'hot' : 'home');
     };
     byId('search-icon-btn').addEventListener('click', openSearch);
     input.addEventListener('input', () => wrap.classList.toggle('has-text', !!input.value.trim()));
@@ -2605,22 +2745,12 @@ function initUI() {
         if (!btn) return;
         switch (btn.dataset.nav) {
             case 'home': setHomeFilter('all'); break;
+            case 'hot': setHomeFilter('popular'); break;
             case 'search': byId('search-icon-btn').click(); break;
             case 'lists': openListsPage(); break;
             case 'profile': byId('profile-btn').click(); break;
         }
     });
-
-    // swipe the episodes drawer left to close it
-    const sidebar = byId('player-sidebar');
-    let startX = null;
-    sidebar.addEventListener('touchstart', (e) => { startX = e.touches[0].clientX; }, { passive: true });
-    sidebar.addEventListener('touchend', (e) => {
-        if (startX === null) return;
-        const dx = e.changedTouches[0].clientX - startX;
-        startX = null;
-        if (isMobile() && dx < -60) setPlayerSidebar(false);
-    }, { passive: true });
 
     // details pop-up: mark as watched
     byId('modal-watched-btn').addEventListener('click', () => { if (currentActiveItem) toggleFinished(currentActiveItem); });
@@ -2638,7 +2768,6 @@ function initUI() {
     window.addEventListener('message', onPlayerMessage);
     window.addEventListener('pagehide', () => { if (player.open) { recordProgress(true); persistWatch(true); } });
 
-    initDragScroll();
     initBackButton();
     setHomeFilterUI();
 }
@@ -2651,7 +2780,18 @@ function setBottomActive(key) {
 
 function setHomeFilterUI() {
     document.querySelectorAll('[data-filter]').forEach(el => el.classList.toggle('is-active', el.dataset.filter === homeFilter));
-    setBottomActive('home');
+    setBottomActive(homeFilter === 'popular' ? 'hot' : 'home');
+    updateNavTitle();
+}
+
+// Phone top bar title: "For <name>" on Home (like the Netflix app), otherwise the section name
+function updateNavTitle() {
+    const title = document.getElementById('nav-title');
+    if (!title) return;
+    const named = account.profile && account.user && !account.user.isGuest;
+    title.textContent = homeFilter === 'all'
+        ? (named ? `For ${account.profile.displayName}` : 'Home')
+        : ({ series: 'TV Shows', movie: 'Movies', popular: 'New & Hot' }[homeFilter] || 'Home');
 }
 
 // ---------------------------------------------------------------------
@@ -2704,34 +2844,4 @@ function top10CardHtml(item, rank) {
         </div>
         <span class="nf-t10-num" aria-label="Number ${rank}">${rank}</span>
     </div>`;
-}
-
-// ---------------------------------------------------------------------
-// Phone layout: swipe rows with a finger (native) or drag them with a mouse
-// ---------------------------------------------------------------------
-function initDragScroll() {
-    let track = null, startX = 0, startLeft = 0, moved = false;
-
-    document.addEventListener('pointerdown', (e) => {
-        moved = false;
-        if (e.pointerType !== 'mouse' || e.button !== 0 || !isMobile()) return;
-        const t = e.target.closest && e.target.closest('.nf-track');
-        if (!t) return;
-        track = t; startX = e.clientX; startLeft = t.scrollLeft;
-    });
-    document.addEventListener('pointermove', (e) => {
-        if (!track) return;
-        const dx = e.clientX - startX;
-        if (Math.abs(dx) > 5) { moved = true; track.classList.add('is-dragging'); }
-        if (moved) track.scrollLeft = startLeft - dx;
-    });
-    const end = () => { if (track) track.classList.remove('is-dragging'); track = null; };
-    document.addEventListener('pointerup', end);
-    document.addEventListener('pointercancel', end);
-    document.addEventListener('dragstart', (e) => {            // stop the browser dragging the poster image itself
-        if (e.target.closest && e.target.closest('.nf-track')) e.preventDefault();
-    });
-    document.addEventListener('click', (e) => {                // a drag must not open the details pop-up
-        if (moved) { e.stopPropagation(); e.preventDefault(); moved = false; }
-    }, true);
 }
