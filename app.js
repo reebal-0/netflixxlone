@@ -765,6 +765,13 @@ function scheduleChromeHide() {
 const fullscreenSupported = () => !!(document.fullscreenEnabled || document.webkitFullscreenEnabled);
 const inFullscreen = () => !!(document.fullscreenElement || document.webkitFullscreenElement);
 function toggleFullscreen() {
+    // iPhone Safari can't fullscreen a web page, so turn the player sideways to fill the screen instead
+    if (!fullscreenSupported()) {
+        const on = plEl('player-shell').classList.toggle('is-rotated');
+        const i = plEl('player-fullscreen-btn').querySelector('i');
+        if (i) i.className = `fa-solid ${on ? 'fa-compress' : 'fa-expand'}`;
+        return;
+    }
     try {
         let r;
         if (inFullscreen()) r = (document.exitFullscreen || document.webkitExitFullscreen).call(document);
@@ -803,7 +810,6 @@ function initVideoPlayerModal() {
     plEl('player-scrim').addEventListener('click', () => setPlayerSidebar(false));
     plEl('player-next-top').addEventListener('click', playNextEpisode);
     plEl('player-fullscreen-btn').addEventListener('click', toggleFullscreen);
-    if (!fullscreenSupported()) plEl('player-fullscreen-btn').style.display = 'none';
     document.addEventListener('fullscreenchange', syncFullscreenBtn);
     document.addEventListener('webkitfullscreenchange', syncFullscreenBtn);
 
@@ -867,7 +873,8 @@ function closeVideoPlayer() {
     if (inFullscreen()) toggleFullscreen();
     setPlayerSidebar(false);
     clearTimeout(chromeTimer);
-    plEl('player-shell').classList.remove('chrome-on');
+    plEl('player-shell').classList.remove('chrome-on', 'is-rotated');
+    syncFullscreenBtn();
 
     plEl('video-player-modal').classList.add('opacity-0', 'pointer-events-none');
     iframe.onload = null;
@@ -1739,6 +1746,7 @@ function wireAccountUI() {
     byId('profile-name').addEventListener('keydown', (e) => { if (e.key === 'Enter') saveProfile(); });
     byId('profile-signout-btn').addEventListener('click', signOutNow);
     byId('profile-api-btn').addEventListener('click', () => { closeOverlay('profile-modal'); byId('api-key-modal-btn').click(); });
+    byId('auth-api-btn').addEventListener('click', () => { closeOverlay('auth-modal'); byId('api-key-modal-btn').click(); });
     byId('profile-upgrade-btn').addEventListener('click', () => {
         closeOverlay('profile-modal');
         openAuthModal('signup', 'Create an account to keep your lists and use them on any device.');

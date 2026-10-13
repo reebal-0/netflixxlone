@@ -809,3 +809,13 @@ html { background: #141414; }
     .npl-autoplay span { display: none; }
     .npl-ep-thumb { flex-basis: 6.6rem; }
 }
+
+/* iPhone has no real fullscreen for web pages: the fullscreen button turns the player sideways to fill the screen */
+#video-player-modal { overflow: hidden; }
+@media (orientation: portrait) {
+    .npl-shell.is-rotated {
+        inset: auto; top: 0; left: 100%;
+        width: 100vh; width: 100dvh; height: 100vw;
+        transform-origin: top left; transform: rotate(90deg);
+    }
+}
