@@ -270,7 +270,10 @@ html:has(body[style*="overflow: hidden"]) { overflow: hidden; }
     display: flex; gap: 0.4rem; overflow-x: auto; scroll-behavior: smooth; scroll-padding-left: 4%;
     scroll-snap-type: x mandatory; overscroll-behavior-x: contain;
     padding: 3.4rem 4% 13rem; margin: -3.4rem 0 -13rem;
+    cursor: grab; touch-action: auto; user-select: none; -webkit-user-select: none;
 }
+.nf-track.is-dragging { cursor: grabbing; scroll-snap-type: none; }
+.nf-track img { -webkit-user-drag: none; user-drag: none; }
 @media (min-width: 1024px) { .nf-track { --per: 5; } }
 @media (min-width: 1500px) { .nf-track { --per: 6; } }
 .nf-handle {
@@ -292,13 +295,7 @@ html:has(body[style*="overflow: hidden"]) { overflow: hidden; }
 }
 .nf-thumb { position: relative; aspect-ratio: 16 / 9; border-radius: 0.4rem; overflow: hidden; background: #222; }
 .nf-thumb picture, .nf-thumb img { display: block; width: 100%; height: 100%; object-fit: cover; }
-.nf-thumb .nf-logo-overlay {
-    position: absolute; z-index: 2; left: 50%; bottom: 19%; width: 68%; height: 38%;
-    object-fit: contain; transform: translateX(-50%); opacity: 0;
-    filter: drop-shadow(0 2px 8px rgba(0, 0, 0, 0.8)); transition: opacity 0.2s ease;
-}
-.nf-card.has-title-logo .nf-logo-overlay { opacity: 1; }
-.nf-card.has-title-logo .nf-title-over { display: none; }
+.nf-thumb .nf-logo-overlay { display: none; }
 .nf-title-over {
     position: absolute; left: 0; right: 0; bottom: 0; padding: 1.6rem 0.7rem 0.55rem;
     font-weight: 800; font-size: 0.9rem; line-height: 1.15; text-shadow: 0 1px 4px rgba(0, 0, 0, 0.8);
@@ -320,6 +317,16 @@ html:has(body[style*="overflow: hidden"]) { overflow: hidden; }
 .nf-card.has-progress .nf-progress { display: block; }
 .nf-progress i { display: block; height: 100%; background: #E50914; }
 
+@media (min-width: 768px) {
+    .nf-thumb .nf-logo-overlay {
+        display: block; position: absolute; z-index: 2; left: 50%; bottom: 19%; width: 68%; height: 38%;
+        object-fit: contain; transform: translateX(-50%); opacity: 0;
+        filter: drop-shadow(0 2px 8px rgba(0, 0, 0, 0.8)); transition: opacity 0.2s ease;
+    }
+    .nf-card.has-title-logo .nf-logo-overlay { opacity: 1; }
+    .nf-card.has-title-logo .nf-title-over { display: none; }
+}
+
 .nf-pop { display: none; }
 @media (hover: hover) and (min-width: 768px) {
     .nf-pop {
@@ -335,6 +342,12 @@ html:has(body[style*="overflow: hidden"]) { overflow: hidden; }
     .nf-card.edge-right { transform-origin: right center; }
 }
 .nf-actions { display: flex; align-items: center; gap: 0.4rem; }
+.nf-row[data-cat="My List"] .nf-title-over,
+.nf-row[data-cat="Recently Browsed"] .nf-title-over,
+.nf-row[data-cat="My List"] .nf-card.has-title-logo .nf-title-over,
+.nf-row[data-cat="Recently Browsed"] .nf-card.has-title-logo .nf-title-over,
+.nf-row[data-cat="My List"] .nf-card:hover .nf-title-over,
+.nf-row[data-cat="Recently Browsed"] .nf-card:hover .nf-title-over { display: block; }
 .nf-circle {
     width: 2rem; height: 2rem; flex-shrink: 0; border-radius: 9999px; cursor: pointer;
     display: flex; align-items: center; justify-content: center; font-size: 0.72rem; color: #fff;

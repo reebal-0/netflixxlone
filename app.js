@@ -1679,6 +1679,7 @@ function updateMyListRow() {
     const fresh = buildRow('My List', items);
     fresh.id = 'my-list-row';
     if (existing) existing.replaceWith(fresh); else container.prepend(fresh);
+    observeTitleLogos(fresh);
     // new cards need their button state
     fresh.querySelectorAll('.list-add-btn').forEach(btn => {
         btn.classList.add('is-saved');
@@ -2775,6 +2776,52 @@ function initUI() {
     });
 
     // row arrows (desktop) + hover-card edge handling
+    let rowDrag = null;
+    document.addEventListener('pointerdown', (e) => {
+        const track = e.target.closest && e.target.closest('.nf-track');
+        if (!track || e.pointerType !== 'mouse' || e.button !== 0) return;
+        rowDrag = {
+            track, pointerId: e.pointerId, startX: e.clientX,
+            startScroll: track.scrollLeft, moved: false,
+            oldScrollBehavior: track.style.scrollBehavior
+        };
+    });
+    document.addEventListener('pointermove', (e) => {
+        if (!rowDrag || e.pointerId !== rowDrag.pointerId) return;
+        const deltaX = e.clientX - rowDrag.startX;
+        if (!rowDrag.moved && Math.abs(deltaX) < 6) return;
+        if (!rowDrag.moved) {
+            rowDrag.moved = true;
+            rowDrag.track.classList.add('is-dragging');
+            rowDrag.track.style.scrollBehavior = 'auto';
+            if (rowDrag.track.setPointerCapture) rowDrag.track.setPointerCapture(e.pointerId);
+        }
+        e.preventDefault();
+        rowDrag.track.scrollLeft = rowDrag.startScroll - deltaX;
+    }, { passive: false });
+    const finishRowDrag = (e) => {
+        if (!rowDrag || (e && e.pointerId !== rowDrag.pointerId)) return;
+        const finishedDrag = rowDrag;
+        rowDrag = null;
+        finishedDrag.track.classList.remove('is-dragging');
+        finishedDrag.track.style.scrollBehavior = finishedDrag.oldScrollBehavior;
+        if (finishedDrag.moved) {
+            finishedDrag.track.dataset.suppressClick = 'true';
+            setTimeout(() => { delete finishedDrag.track.dataset.suppressClick; }, 0);
+        }
+    };
+    document.addEventListener('pointerup', finishRowDrag);
+    document.addEventListener('pointercancel', finishRowDrag);
+    document.addEventListener('click', (e) => {
+        const track = e.target.closest && e.target.closest('.nf-track');
+        if (track && track.dataset.suppressClick) {
+            e.preventDefault();
+            e.stopPropagation();
+        }
+    }, true);
+    document.addEventListener('contextmenu', (e) => {
+        if (e.target.closest && e.target.closest('.nf-track')) e.preventDefault();
+    });
     document.addEventListener('click', (e) => {
         const h = e.target.closest('.nf-handle');
         if (!h) return;
