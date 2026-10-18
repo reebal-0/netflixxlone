@@ -49,6 +49,8 @@ let currentActiveItem = null;
 let catalog = {};
 let allMediaMap = new Map();
 let searchTimeout = null;
+const titleLogoCache = new Map();
+let titleLogoObserver = null;
 
 let recentlyBrowsed = JSON.parse(localStorage.getItem('recently_browsed_media') || '[]');
 
@@ -264,7 +266,55 @@ function renderSearchResults(items) {
     }
 
     grid.innerHTML = items.map(cardHtml).join('');
+    observeTitleLogos(grid);
     refreshListUI();
+}
+
+function observeTitleLogos(root) {
+    if (!root || !('IntersectionObserver' in window)) return;
+    if (!titleLogoObserver) {
+        titleLogoObserver = new IntersectionObserver(entries => {
+            entries.forEach(entry => {
+                if (!entry.isIntersecting) return;
+                titleLogoObserver.unobserve(entry.target);
+                const item = allMediaMap.get(String(entry.target.dataset.id));
+                if (item) loadTitleLogo(item, entry.target);
+            });
+        }, { rootMargin: '250px' });
+    }
+    root.querySelectorAll('.nf-card[data-id]').forEach(card => {
+        if (!card.dataset.logoObserved && !card.classList.contains('nf-card--t10')) {
+            card.dataset.logoObserved = 'true';
+            titleLogoObserver.observe(card);
+        }
+    });
+}
+
+async function loadTitleLogo(item, card) {
+    const id = String(item.id);
+    if (!/^\d+$/.test(id) || !['movie', 'series'].includes(item.type)) return;
+    let logoUrl = titleLogoCache.get(`${item.type}:${id}`);
+    if (logoUrl === undefined) {
+        try {
+            const mediaType = item.type === 'series' ? 'tv' : 'movie';
+            const response = await fetch(`${CONFIG.tmdbBaseUrl}/${mediaType}/${encodeURIComponent(id)}/images?api_key=${encodeURIComponent(userApiKey)}&include_image_language=en,null`);
+            if (!response.ok) throw new Error('Logo request failed');
+            const data = await response.json();
+            const logos = data.logos || [];
+            const logo = logos.find(image => image.iso_639_1 === 'en') || logos.find(image => image.iso_639_1 === null) || logos[0];
+            logoUrl = logo ? `https://image.tmdb.org/t/p/w500${logo.file_path}` : null;
+            titleLogoCache.set(`${item.type}:${id}`, logoUrl);
+        } catch (_) {
+            titleLogoCache.set(`${item.type}:${id}`, null);
+            return;
+        }
+    }
+    if (!logoUrl || !card.isConnected) return;
+    const logo = card.querySelector('.nf-logo-overlay');
+    if (!logo) return;
+    logo.onload = () => card.classList.add('has-title-logo');
+    logo.onerror = () => { logo.removeAttribute('src'); };
+    logo.src = logoUrl;
 }
 
 function clearSearch() {
@@ -2135,6 +2185,7 @@ function cardHtml(item) {
                 <source media="(min-width: 768px)" srcset="${escapeHtml(bannerFor(item))}">
                 <img src="${escapeHtml(item.poster)}" alt="${title}" loading="lazy" onerror="this.src='https://placehold.co/400x600/181818/ffffff?text=No+Image'">
             </picture>
+            <img class="nf-logo-overlay" alt="" aria-hidden="true" loading="lazy">
             <span class="nf-title-over">${title}</span>
             <span class="nf-resume-label">${resumeLabel(id)}</span>
             <span class="nf-watched" title="Finished"><i class="fa-solid fa-check"></i></span>
@@ -2197,6 +2248,7 @@ function renderCategories() {
     updateContinueRow();
     refreshListUI();
     refreshWatchUI();
+    observeTitleLogos(container);
     requestAnimationFrame(updateAllHandles);
 }
 

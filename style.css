@@ -292,6 +292,13 @@ html:has(body[style*="overflow: hidden"]) { overflow: hidden; }
 }
 .nf-thumb { position: relative; aspect-ratio: 16 / 9; border-radius: 0.4rem; overflow: hidden; background: #222; }
 .nf-thumb picture, .nf-thumb img { display: block; width: 100%; height: 100%; object-fit: cover; }
+.nf-thumb .nf-logo-overlay {
+    position: absolute; z-index: 2; left: 50%; bottom: 19%; width: 68%; height: 38%;
+    object-fit: contain; transform: translateX(-50%); opacity: 0;
+    filter: drop-shadow(0 2px 8px rgba(0, 0, 0, 0.8)); transition: opacity 0.2s ease;
+}
+.nf-card.has-title-logo .nf-logo-overlay { opacity: 1; }
+.nf-card.has-title-logo .nf-title-over { display: none; }
 .nf-title-over {
     position: absolute; left: 0; right: 0; bottom: 0; padding: 1.6rem 0.7rem 0.55rem;
     font-weight: 800; font-size: 0.9rem; line-height: 1.15; text-shadow: 0 1px 4px rgba(0, 0, 0, 0.8);
