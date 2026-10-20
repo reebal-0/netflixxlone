@@ -49,6 +49,7 @@
 
     <!-- Navigation Bar -->
     <nav id="navbar" class="nf-nav">
+        <button id="modal-close-btn" type="button" class="nfm-close" aria-label="Back"><i class="fa-solid fa-arrow-left"></i></button>
         <div class="nf-nav-left">
             <a href="#" onclick="resetHomeView(event)" class="nav-logo" aria-label="Netflix home">
                 <span class="logo-full">NETFLIX</span>
@@ -155,9 +156,9 @@
     <div id="details-modal" class="nfm-overlay opacity-0 pointer-events-none transition-opacity duration-300" role="dialog" aria-modal="true" aria-label="Title details">
         <div id="modal-content-box" class="nfm transform scale-95 transition-transform duration-300">
             <div class="nfm-hero" id="modal-banner">
-                <button id="modal-close-btn" type="button" class="nfm-close" aria-label="Close"><i class="fa-solid fa-xmark"></i></button>
                 <div class="nfm-hero-bottom">
                     <div class="nfm-kind"><svg class="nf-n" viewBox="0 0 24 40" aria-hidden="true"><use href="#nf-n"/></svg><span id="modal-kind">SERIES</span></div>
+                    <img id="modal-title-logo" class="nfm-title-logo" alt="" hidden>
                     <h2 id="modal-title" class="nfm-title">Title</h2>
                     <div class="nfm-actions">
                         <button id="modal-main-play-btn" type="button" class="nfm-play"><i class="fa-solid fa-play"></i><span id="modal-play-btn-text">Play</span></button>
@@ -186,6 +187,11 @@
                     </div>
                 </div>
 
+                <section class="nfm-cast-section" aria-label="Cast">
+                    <h3>Cast</h3>
+                    <div id="modal-cast-cards" class="nfm-cast-cards"></div>
+                </section>
+
                 <!-- Episodes -->
                 <div id="modal-episodes-section" class="nfm-eps hidden">
                     <div class="nfm-eps-head">
@@ -208,7 +214,7 @@
     <!-- ============ Video player (Netflix layout: full-bleed video, fading top bar, episodes flyout) ============ -->
     <div id="video-player-modal" class="fixed inset-0 z-50 bg-black opacity-0 pointer-events-none transition-opacity duration-300" role="dialog" aria-modal="true" aria-label="Video player">
         <div id="player-shell" class="npl-shell">
-            <iframe id="video-iframe" src="" allowfullscreen allow="autoplay; fullscreen; picture-in-picture; encrypted-media"></iframe>
+            <iframe id="video-iframe" src="" allowfullscreen allow="encrypted-media; autoplay *; fullscreen *; picture-in-picture"></iframe>
             <div id="player-loading" class="npl-loading is-hidden"><div class="npl-spinner"></div></div>
 
             <!-- invisible strip: moving the mouse over it brings the top bar back -->

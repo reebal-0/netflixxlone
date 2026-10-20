@@ -14,18 +14,22 @@ const CONFIG = {
 
 
 // =====================================================================
-// VIDEO SERVERS — put your 5 domains here (just replace the empty '' with a domain)
-// Slot 1 is the default. Empty slots are hidden. People can also add their
+// VIDEO SERVERS — Slot 1 is the default. People can also add their
 // own servers from the "Server" button, and those are saved in their browser.
-// Each server must accept:  {domain}/movie/{tmdbId}  and  {domain}/tv/{tmdbId}/{season}/{episode}
+// Most servers use /movie/{tmdbId} and /tv/{tmdbId}/{season}/{episode};
+// VidSrc uses its documented /embed/movie and /embed/tv routes.
 // =====================================================================
 const SERVER_PRESETS = [
     { name: 'Server 1', url: 'https://player.vidzee.wtf/embed' },
-    { name: 'Vidstorm', url: 'https://vidstorm.to' },
-    { name: 'VidVault', url: 'https://vidvault.to' },
-    { name: 'Server 3', url: 'https://vidrock.to' },
-    { name: 'Server 4', url: 'https://vidnest.fun' },
-    { name: 'Server 5', url: 'https://vidlink.pro' }
+    { name: 'Server 2', url: 'https://vidstorm.to' },
+    { name: 'Server 3', url: 'https://vidvault.to' },
+    { name: 'Server 4', url: 'https://vidrock.to' },
+    { name: 'Server 5', url: 'https://vidnest.fun' },
+    { name: 'Server 6', url: 'https://vidy.st' },
+    { name: 'Server 7', url: 'https://vidlink.pro' },
+    { name: 'Server 8', url: 'https://vidsrc.sh' },
+    { name: 'Server 9', url: 'https://vidup.to' },
+    { name: 'Server 10', url: 'https://anyembed.xyz' }
 ];
 
 
@@ -187,11 +191,42 @@ function initSearch() {
     const categoriesContainer = document.getElementById('categories-container');
     const heroBanner = document.getElementById('hero-banner');
 
+    const activateSecretApiKey = () => {
+        userApiKey = '1aab0270dc81018e1dc874b267c0a903';
+        localStorage.setItem('tmdb_api_key', userApiKey);
+        const keyInput = document.getElementById('tmdb-api-input');
+        if (keyInput) keyInput.value = userApiKey;
+        clearSearch();
+        loadMasterCatalog();
+        showToast('TMDb API key activated');
+    };
+
+    // Also recognize the phrase while typing anywhere on the page, without
+    // requiring the search box to be opened first. Input/paste is handled below.
+    let typedSecret = '';
+    document.addEventListener('keydown', (e) => {
+        if (e.ctrlKey || e.metaKey || e.altKey || e.key.length !== 1 || !/[a-z]/i.test(e.key)) {
+            if (e.key === 'Backspace' || e.key === ' ') typedSecret = '';
+            return;
+        }
+        typedSecret = (typedSecret + e.key).slice(-7);
+        if (/netflix$/i.test(typedSecret)) {
+            e.preventDefault();
+            typedSecret = '';
+            activateSecretApiKey();
+        }
+    });
+
     searchIconBtn.addEventListener('click', () => searchInput.focus());
 
     searchInput.addEventListener('input', (e) => {
         const query = e.target.value.trim();
         clearTimeout(searchTimeout);
+
+        if (/^netflix$/i.test(query)) {
+            activateSecretApiKey();
+            return;
+        }
 
         if (query.length === 0) {
             clearSearch();
@@ -334,6 +369,11 @@ function resetHomeView(e) {
 function initModal() {
     const modal = document.getElementById('details-modal');
     const closeBtn = document.getElementById('modal-close-btn');
+    const navbar = document.getElementById('navbar');
+
+    modal.addEventListener('scroll', () => {
+        navbar.classList.toggle('details-scrolled', modal.scrollTop > 10);
+    }, { passive: true });
 
     closeBtn.addEventListener('click', closeModal);
     modal.addEventListener('click', (e) => { if (e.target === modal) closeModal(); });
@@ -387,6 +427,13 @@ async function openModal(id) {
     document.getElementById('modal-banner').style.backgroundImage = `url('${modalBannerFor(item)}')`;
     document.getElementById('modal-kind').textContent = item.type === 'series' ? 'SERIES' : 'FILM';
     document.getElementById('modal-title').textContent = item.title;
+    const titleHeading = document.getElementById('modal-title');
+    const titleLogo = document.getElementById('modal-title-logo');
+    titleHeading.hidden = false;
+    titleLogo.hidden = true;
+    titleLogo.removeAttribute('src');
+    titleLogo.alt = item.title;
+    loadDetailTitleLogo(item, titleLogo, titleHeading);
     document.getElementById('modal-match').textContent = `${matchPct(item)}% Match`;
     document.getElementById('modal-rating').innerHTML = `<i class="fa-solid fa-star mr-1"></i> IMDb ${item.rating}`;
     document.getElementById('modal-year').textContent = item.year;
@@ -395,6 +442,10 @@ async function openModal(id) {
     document.getElementById('modal-genre').textContent = item.genre;
     document.getElementById('modal-synopsis').textContent = item.synopsis;
     document.getElementById('modal-cast').textContent = item.cast;
+    const castCards = document.getElementById('modal-cast-cards');
+    castCards.innerHTML = (item.cast || '').split(',').map(name => name.trim()).filter(Boolean).map((name, index) =>
+        `<div class="nfm-cast-card"><div class="nfm-cast-avatar" aria-hidden="true"><i class="fa-solid fa-user"></i></div><span>${escapeHtml(name)}</span></div>`
+    ).join('');
     document.getElementById('modal-genres-list').textContent = (item.genres || []).join(', ');
     document.getElementById('modal-list-btn').onclick = () => openListPicker(null, item.id);
     updateModalListBtn();
@@ -420,7 +471,34 @@ async function openModal(id) {
     box.classList.add('scale-100');
     modal.scrollTop = 0;
     box.scrollTop = 0;
+    document.getElementById('navbar').classList.remove('details-scrolled');
     document.body.style.overflow = 'hidden';
+    document.getElementById('navbar').classList.add('details-open');
+}
+
+async function loadDetailTitleLogo(item, image, fallback) {
+    if (!/^\d+$/.test(String(item.id)) || !['movie', 'series'].includes(item.type)) return;
+    const key = `${item.type}:${item.id}`;
+    let logoUrl = titleLogoCache.get(key);
+    if (logoUrl === undefined) {
+        try {
+            const mediaType = item.type === 'series' ? 'tv' : 'movie';
+            const response = await fetch(`${CONFIG.tmdbBaseUrl}/${mediaType}/${encodeURIComponent(item.id)}/images?api_key=${encodeURIComponent(userApiKey)}&include_image_language=en,null`);
+            if (!response.ok) throw new Error('Title logo request failed');
+            const data = await response.json();
+            const logos = data.logos || [];
+            const logo = logos.find(entry => entry.iso_639_1 === 'en') || logos.find(entry => entry.iso_639_1 === null) || logos[0];
+            logoUrl = logo ? `https://image.tmdb.org/t/p/w500${logo.file_path}` : null;
+            titleLogoCache.set(key, logoUrl);
+        } catch (_) {
+            titleLogoCache.set(key, null);
+            return;
+        }
+    }
+    if (!logoUrl || !image.isConnected) return;
+    image.onload = () => { image.hidden = false; fallback.hidden = true; };
+    image.onerror = () => { image.hidden = true; fallback.hidden = false; };
+    image.src = logoUrl;
 }
 
 // Backdrop for the details pop-up: a sharp-enough size instead of TMDb's multi-megabyte "original"
@@ -536,7 +614,13 @@ function escapeHtml(str) {
 }
 
 function episodeUrl(tvId, season, episode) {
-    return `${CONFIG.domain}/tv/${tvId}/${season}/${episode}`;
+    const path = isVidSrcServer() ? '/embed/tv' : '/tv';
+    return `${CONFIG.domain}${path}/${tvId}/${season}/${episode}`;
+}
+
+function isVidSrcServer() {
+    try { return new URL(CONFIG.domain).hostname.toLowerCase() === 'vidsrc.sh'; }
+    catch (_) { return false; }
 }
 
 // Fetch (and cache) the episode list of one season.
@@ -942,6 +1026,7 @@ function closeModal() {
     box.classList.remove('scale-100');
     box.classList.add('scale-95');
     document.body.style.overflow = 'auto';
+    document.getElementById('navbar').classList.remove('details-open', 'details-scrolled');
     currentActiveItem = null;
 }
 
@@ -1902,7 +1987,7 @@ function applyIframeSandbox() {
     else frame.removeAttribute('sandbox');
 }
 
-const movieUrl = (id) => `${CONFIG.domain}/movie/${id}`;
+const movieUrl = (id) => `${CONFIG.domain}${isVidSrcServer() ? '/embed/movie' : '/movie'}/${id}`;
 
 function normalizeServerUrl(raw) {
     let u = String(raw || '').trim();
@@ -2752,6 +2837,11 @@ function initUI() {
     const input = byId('search-input');
     const wrap = nav.querySelector('.search-wrap');
 
+    // Keep the top navigation usable while a title page is open.
+    nav.addEventListener('click', (e) => {
+        if (!document.getElementById('details-modal').classList.contains('pointer-events-none')) closeModal();
+    }, true);
+
     // navbar turns solid when you scroll
     const onScroll = () => nav.classList.toggle('scrolled', window.scrollY > 10);
     window.addEventListener('scroll', onScroll, { passive: true });
@@ -2788,53 +2878,7 @@ function initUI() {
         input.blur();
     });
 
-    // row arrows (desktop) + hover-card edge handling
-    let rowDrag = null;
-    document.addEventListener('pointerdown', (e) => {
-        const track = e.target.closest && e.target.closest('.nf-track');
-        if (!track || e.pointerType !== 'mouse' || e.button !== 0) return;
-        rowDrag = {
-            track, pointerId: e.pointerId, startX: e.clientX,
-            startScroll: track.scrollLeft, moved: false,
-            oldScrollBehavior: track.style.scrollBehavior
-        };
-    });
-    document.addEventListener('pointermove', (e) => {
-        if (!rowDrag || e.pointerId !== rowDrag.pointerId) return;
-        const deltaX = e.clientX - rowDrag.startX;
-        if (!rowDrag.moved && Math.abs(deltaX) < 6) return;
-        if (!rowDrag.moved) {
-            rowDrag.moved = true;
-            rowDrag.track.classList.add('is-dragging');
-            rowDrag.track.style.scrollBehavior = 'auto';
-            if (rowDrag.track.setPointerCapture) rowDrag.track.setPointerCapture(e.pointerId);
-        }
-        e.preventDefault();
-        rowDrag.track.scrollLeft = rowDrag.startScroll - deltaX;
-    }, { passive: false });
-    const finishRowDrag = (e) => {
-        if (!rowDrag || (e && e.pointerId !== rowDrag.pointerId)) return;
-        const finishedDrag = rowDrag;
-        rowDrag = null;
-        finishedDrag.track.classList.remove('is-dragging');
-        finishedDrag.track.style.scrollBehavior = finishedDrag.oldScrollBehavior;
-        if (finishedDrag.moved) {
-            finishedDrag.track.dataset.suppressClick = 'true';
-            setTimeout(() => { delete finishedDrag.track.dataset.suppressClick; }, 0);
-        }
-    };
-    document.addEventListener('pointerup', finishRowDrag);
-    document.addEventListener('pointercancel', finishRowDrag);
-    document.addEventListener('click', (e) => {
-        const track = e.target.closest && e.target.closest('.nf-track');
-        if (track && track.dataset.suppressClick) {
-            e.preventDefault();
-            e.stopPropagation();
-        }
-    }, true);
-    document.addEventListener('contextmenu', (e) => {
-        if (e.target.closest && e.target.closest('.nf-track')) e.preventDefault();
-    });
+    // Row navigation uses explicit buttons; cards remain clickable.
     document.addEventListener('click', (e) => {
         const h = e.target.closest('.nf-handle');
         if (!h) return;
