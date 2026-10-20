@@ -21,7 +21,8 @@ const CONFIG = {
 // =====================================================================
 const SERVER_PRESETS = [
     { name: 'Server 1', url: 'https://player.vidzee.wtf/embed' },
-    { name: 'Server 2', url: 'https://vidstorm.to' },
+    { name: 'Vidstorm', url: 'https://vidstorm.to' },
+    { name: 'VidVault', url: 'https://vidvault.to' },
     { name: 'Server 3', url: 'https://vidrock.to' },
     { name: 'Server 4', url: 'https://vidnest.fun' },
     { name: 'Server 5', url: 'https://vidlink.pro' }
@@ -859,6 +860,7 @@ function initVideoPlayerModal() {
     plEl('player-episodes-btn').addEventListener('click', togglePlayerSidebar);
     plEl('player-scrim').addEventListener('click', () => setPlayerSidebar(false));
     plEl('player-next-top').addEventListener('click', playNextEpisode);
+    plEl('player-download-btn').addEventListener('click', useVidVaultForDownload);
     plEl('player-fullscreen-btn').addEventListener('click', toggleFullscreen);
     document.addEventListener('fullscreenchange', syncFullscreenBtn);
     document.addEventListener('webkitfullscreenchange', syncFullscreenBtn);
@@ -1882,10 +1884,16 @@ let customServers = [];
 // A sandboxed iframe can't open new tabs/windows or navigate the page you're on
 // (no allow-popups / allow-top-navigation), which is what ad-heavy servers abuse.
 const UNPROTECTED_KEY = 'nx_unprotected_servers';   // servers the person switched pop-up protection off for
+const SANDBOX_BLOCK_KEY = 'nx_sandbox_block_popups';
 const SANDBOX_FLAGS = 'allow-scripts allow-same-origin allow-forms allow-presentation';
 let unprotectedServers = new Set();
 try { unprotectedServers = new Set(JSON.parse(localStorage.getItem(UNPROTECTED_KEY) || '[]')); } catch (e) { unprotectedServers = new Set(); }
-const popupsBlocked = () => !unprotectedServers.has(hostOf(CONFIG.domain));
+// Once the user changes the toggle, keep that preference across every server.
+// Before then, honor any older per-server setting already saved in this browser.
+const popupsBlocked = () => {
+    const savedPreference = localStorage.getItem(SANDBOX_BLOCK_KEY);
+    return savedPreference === null ? !unprotectedServers.has(hostOf(CONFIG.domain)) : savedPreference === 'true';
+};
 
 function applyIframeSandbox() {
     const frame = byId('video-iframe');
@@ -1966,12 +1974,10 @@ function initServers() {
 
     const toggle = byId('block-popups-toggle');
     toggle.addEventListener('change', () => {
-        const host = hostOf(CONFIG.domain);
-        if (toggle.checked) unprotectedServers.delete(host); else unprotectedServers.add(host);
-        try { localStorage.setItem(UNPROTECTED_KEY, JSON.stringify([...unprotectedServers])); } catch (e) {}
+        try { localStorage.setItem(SANDBOX_BLOCK_KEY, String(toggle.checked)); } catch (e) {}
         applyIframeSandbox();
         reloadPlayerSource();   // sandbox changes only apply after a reload
-        showToast(toggle.checked ? 'Pop-up protection on' : 'Pop-up protection off for this server');
+        showToast(toggle.checked ? 'Pop-up protection on' : 'Pop-up protection off');
     });
 
     applyIframeSandbox();
@@ -2015,6 +2021,13 @@ function setServer(url, silent = false) {
         const s = getAllServers().find(x => x.url === url);
         showToast(`Server: ${s ? s.name : hostOf(url)}`);
     }
+}
+
+function useVidVaultForDownload() {
+    const vidvault = getAllServers().find(s => hostOf(s.url).toLowerCase() === 'vidvault.to');
+    const url = vidvault ? vidvault.url : 'https://vidvault.to';
+    setServer(url, true);
+    showToast('Use VidVault to download');
 }
 
 // If something is already playing, reload it from the newly chosen server.
