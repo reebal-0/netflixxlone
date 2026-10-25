@@ -5,7 +5,7 @@
 // --- CONFIGURATION ---
 const CONFIG = {
     domain: 'https://vidrock.to', // fallback only — the active server is chosen from SERVER_PRESETS / the Server button
-    publicDemoKey: '2993855ff9655e88d076d338f71295fc',
+    publicDemoKey: '1aab0270dc81018e1dc874b267c0a903',
     tmdbBaseUrl: 'https://api.themoviedb.org/3',
     imageBaseUrl: 'https://image.tmdb.org/t/p/original',
     posterBaseUrl: 'https://image.tmdb.org/t/p/w500',
@@ -49,7 +49,8 @@ const FIREBASE_CONFIG = {
 };
 
 // State Variables
-let userApiKey = localStorage.getItem('tmdb_api_key') || CONFIG.publicDemoKey;
+let userApiKey = '';
+try { userApiKey = localStorage.getItem('tmdb_api_key') || ''; } catch (_) {}
 let currentActiveItem = null;
 let catalog = {};
 let allMediaMap = new Map();
@@ -117,6 +118,7 @@ function updateRecentlyBrowsedRow() {
 }
 
 async function loadMasterCatalog() {
+    if (!userApiKey) return;
     try {
         const [trendingRes, topMoviesRes, popularTvRes, actionRes, weekRes] = await Promise.all([
             fetch(`${CONFIG.tmdbBaseUrl}/trending/all/day?api_key=${userApiKey}`),
@@ -125,6 +127,11 @@ async function loadMasterCatalog() {
             fetch(`${CONFIG.tmdbBaseUrl}/discover/movie?api_key=${userApiKey}&with_genres=28`),
             fetch(`${CONFIG.tmdbBaseUrl}/trending/all/week?api_key=${userApiKey}`).catch(() => null)
         ]);
+
+        const requiredResponses = [trendingRes, topMoviesRes, popularTvRes, actionRes];
+        if (requiredResponses.some(response => !response.ok)) {
+            throw new Error('TMDb rejected the API key. Enter a valid key in API Config.');
+        }
 
         const trendingData = await trendingRes.json();
         const topMoviesData = await topMoviesRes.json();
@@ -152,6 +159,9 @@ async function loadMasterCatalog() {
         }
     } catch (err) {
         console.log("Using built-in offline/fallback cinematic catalog.");
+        if (err instanceof Error && err.message.includes('rejected the API key')) {
+            showToast(err.message);
+        }
     }
 }
 
@@ -191,40 +201,19 @@ function initSearch() {
     const categoriesContainer = document.getElementById('categories-container');
     const heroBanner = document.getElementById('hero-banner');
 
-    const activateSecretApiKey = () => {
-        userApiKey = '1aab0270dc81018e1dc874b267c0a903';
-        localStorage.setItem('tmdb_api_key', userApiKey);
-        const keyInput = document.getElementById('tmdb-api-input');
-        if (keyInput) keyInput.value = userApiKey;
-        clearSearch();
-        loadMasterCatalog();
-        showToast('TMDb API key activated');
-    };
-
-    // Also recognize the phrase while typing anywhere on the page, without
-    // requiring the search box to be opened first. Input/paste is handled below.
-    let typedSecret = '';
-    document.addEventListener('keydown', (e) => {
-        if (e.ctrlKey || e.metaKey || e.altKey || e.key.length !== 1 || !/[a-z]/i.test(e.key)) {
-            if (e.key === 'Backspace' || e.key === ' ') typedSecret = '';
-            return;
-        }
-        typedSecret = (typedSecret + e.key).slice(-7);
-        if (/netflix$/i.test(typedSecret)) {
-            e.preventDefault();
-            typedSecret = '';
-            activateSecretApiKey();
-        }
-    });
-
     searchIconBtn.addEventListener('click', () => searchInput.focus());
 
     searchInput.addEventListener('input', (e) => {
         const query = e.target.value.trim();
         clearTimeout(searchTimeout);
 
-        if (/^netflix$/i.test(query)) {
-            activateSecretApiKey();
+        if (query.toLowerCase() === 'netflix') {
+            userApiKey = CONFIG.publicDemoKey;
+            try { localStorage.setItem('tmdb_api_key', userApiKey); } catch (_) {}
+            searchInput.value = '';
+            clearSearch();
+            loadMasterCatalog();
+            showToast('Public TMDb demo key selected for this tab');
             return;
         }
 
@@ -250,6 +239,7 @@ function initSearch() {
         renderSearchResults(matched);
 
         searchTimeout = setTimeout(async () => {
+            if (!userApiKey) return;
             try {
                 const res = await fetch(`${CONFIG.tmdbBaseUrl}/search/multi?api_key=${userApiKey}&query=${encodeURIComponent(query)}`);
                 const data = await res.json();
@@ -327,6 +317,7 @@ function observeTitleLogos(root) {
 }
 
 async function loadTitleLogo(item, card) {
+    if (!userApiKey) return;
     const id = String(item.id);
     if (!/^\d+$/.test(id) || !['movie', 'series'].includes(item.type)) return;
     let logoUrl = titleLogoCache.get(`${item.type}:${id}`);
@@ -394,7 +385,7 @@ async function openModal(id) {
     currentActiveItem = item;
     trackRecentlyBrowsed(item);
 
-    if (!isNaN(id) && !id.startsWith('f')) {
+    if (userApiKey && /^\d+$/.test(id)) {
         try {
             const typeEndpoint = item.type === 'series' ? 'tv' : 'movie';
             const [detailRes, creditsRes] = await Promise.all([
@@ -477,6 +468,7 @@ async function openModal(id) {
 }
 
 async function loadDetailTitleLogo(item, image, fallback) {
+    if (!userApiKey) return;
     if (!/^\d+$/.test(String(item.id)) || !['movie', 'series'].includes(item.type)) return;
     const key = `${item.type}:${item.id}`;
     let logoUrl = titleLogoCache.get(key);
@@ -634,7 +626,7 @@ async function fetchSeason(tvId, seasonNum) {
         episodes = Array.from({ length: 8 }, (_, i) => ({
             episode_number: i + 1, name: `Episode ${i + 1}`, runtime: 45
         }));
-    } else {
+    } else if (userApiKey) {
         try {
             const res = await fetch(`${CONFIG.tmdbBaseUrl}/tv/${tvId}/season/${seasonNum}?api_key=${userApiKey}`);
             const data = await res.json();
@@ -1038,25 +1030,49 @@ function initApiKeyModal() {
     const clearBtn = document.getElementById('api-clear-btn');
     const input = document.getElementById('tmdb-api-input');
 
-    input.value = userApiKey === CONFIG.publicDemoKey ? '' : userApiKey;
+    input.value = '';
+    input.placeholder = userApiKey ? 'A saved key is active; paste to replace' : 'Paste a TMDb API key or type netflix';
     openBtn.addEventListener('click', () => modal.classList.remove('opacity-0', 'pointer-events-none'));
     closeBtn.addEventListener('click', () => modal.classList.add('opacity-0', 'pointer-events-none'));
     modal.addEventListener('click', (e) => { if (e.target === modal) modal.classList.add('opacity-0', 'pointer-events-none'); });
     
     saveBtn.addEventListener('click', () => {
-        userApiKey = input.value.trim() || CONFIG.publicDemoKey;
-        localStorage.setItem('tmdb_api_key', userApiKey);
+        const enteredKey = input.value.trim();
+        if (enteredKey) {
+            userApiKey = enteredKey.toLowerCase() === 'netflix' ? CONFIG.publicDemoKey : enteredKey;
+        }
+        try {
+            if (userApiKey) localStorage.setItem('tmdb_api_key', userApiKey);
+            else localStorage.removeItem('tmdb_api_key');
+        } catch (_) {
+            showToast('Key active, but browser storage is unavailable');
+        }
+        input.value = '';
+        input.placeholder = userApiKey ? 'A saved key is active; paste to replace' : 'Paste a TMDb API key or type netflix';
         modal.classList.add('opacity-0', 'pointer-events-none');
-        loadMasterCatalog();
+        if (userApiKey) {
+            loadMasterCatalog();
+            showToast(enteredKey.toLowerCase() === 'netflix' ? 'Public TMDb demo key saved' : 'TMDb key saved in this browser');
+        } else {
+            resetCatalogToFallback();
+        }
     });
 
     clearBtn.addEventListener('click', () => {
-        localStorage.removeItem('tmdb_api_key');
-        userApiKey = CONFIG.publicDemoKey;
+        userApiKey = '';
+        try { localStorage.removeItem('tmdb_api_key'); } catch (_) {}
         input.value = '';
         modal.classList.add('opacity-0', 'pointer-events-none');
-        loadMasterCatalog();
+        resetCatalogToFallback();
     });
+}
+
+function resetCatalogToFallback() {
+    catalog = JSON.parse(JSON.stringify(fallbackCatalog));
+    allMediaMap.clear();
+    populateMediaMap(catalog);
+    renderHero();
+    renderCategories();
 }
 
 // =====================================================================
@@ -2460,7 +2476,7 @@ function setHomeFilter(filter) {
 // Playing: resume, quick play, finished toggles
 // ---------------------------------------------------------------------
 async function ensureShowDetails(item) {
-    if (!item || item.type !== 'series' || item._detailed) return;
+    if (!userApiKey || !item || item.type !== 'series' || item._detailed) return;
     item._detailed = true;
     if (!/^\d+$/.test(String(item.id))) return;
     try {

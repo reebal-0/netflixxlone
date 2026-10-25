@@ -54,15 +54,20 @@ git clone https://github.com/reebal-0/netflixxlone.git
 cd netflixxlone
 ```
 
-### Activate the built-in TMDb demo key
-
-Enter `netflix` in the app's search field. The shortcut activates the demo TMDb key and reloads the live catalog. A successful fetch requires an internet connection.
-
 ### Use your own TMDb API key
 
 1. Create a free account at [themoviedb.org](https://www.themoviedb.org/) and request an API key.
 2. Open **API Config** in the app, enter your TMDb API v3 key, and select **Save Key**.
-3. The key is stored in your browser's `localStorage`.
+3. Select **Save Key** to keep it in this browser across reloads. The field is masked when you reopen API Config; select **Clear Key** to remove it.
+
+To use the built-in public demo key instead, enter `netflix` in API Config and select **Save Key**, or type it into the search box. Both shortcuts save the demo key in this browser and load live TMDb data.
+
+## 🔐 Security notes
+
+- The `netflix` shortcut activates a shared public demo key embedded in the frontend. Anyone can inspect or reuse it, and it may be revoked or rate-limited. It is not a private credential.
+- Keys entered in API Config are masked and saved in this browser's local storage so they survive reloads. Since this is a static browser app, saved keys can be read by browser scripts and developer tools and are sent to TMDb. Use a server-side proxy for production; do not save a private key in frontend code.
+- Firebase web configuration values are public identifiers, not private credentials. Protect the Firebase project with restrictive Firestore rules, authorized domains, API-key restrictions, and App Check before enabling public access. Never put service-account credentials in this repository.
+- Previously published TMDb keys should be revoked in TMDb and replaced, since deleting a key from the current source does not remove it from old commits or published copies.
 
 ## 🗂️ Project structure
 
