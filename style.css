@@ -926,6 +926,14 @@ html { background: #141414; }
 
 /* iPhone has no real fullscreen for web pages: the fullscreen button turns the player sideways to fill the screen */
 #video-player-modal { overflow: hidden; }
+@supports (height: 100dvh) {
+    #video-player-modal { height: 100dvh; }
+}
+@media (hover: none), (pointer: coarse) {
+    /* A touch screen cannot hover back to controls after the chrome fades. */
+    .npl-shell .npl-chrome { opacity: 1; }
+    .npl-shell .npl-icon { pointer-events: auto; }
+}
 @media (orientation: portrait) {
     .npl-shell.is-rotated {
         inset: auto; top: 0; left: 100%;

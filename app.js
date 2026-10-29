@@ -882,6 +882,9 @@ function showChrome() {
 }
 function scheduleChromeHide() {
     clearTimeout(chromeTimer);
+    // Touch players have no hover to restore the controls once they fade. Keep
+    // the chrome visible for the whole session on phones and tablets.
+    if (window.matchMedia('(hover: none), (pointer: coarse)').matches) return;
     chromeTimer = setTimeout(() => {
         const serverOpen = !byId('server-modal').classList.contains('pointer-events-none');
         if (panelOpen() || serverOpen) { scheduleChromeHide(); return; }
