@@ -20,16 +20,17 @@ const CONFIG = {
 // VidSrc uses its documented /embed/movie and /embed/tv routes.
 // =====================================================================
 const SERVER_PRESETS = [
-    { name: 'Server 1', url: 'https://player.vidzee.wtf/embed' },
-    { name: 'Server 2', url: 'https://vidstorm.to' },
-    { name: 'Server 3', url: 'https://vidvault.to' },
-    { name: 'Server 4', url: 'https://vidrock.to' },
-    { name: 'Server 5', url: 'https://vidnest.fun' },
-    { name: 'Server 6', url: 'https://vidy.st' },
-    { name: 'Server 7', url: 'https://vidlink.pro' },
-    { name: 'Server 8', url: 'https://vidsrc.sh' },
-    { name: 'Server 9', url: 'https://vidup.to' },
-    { name: 'Server 10', url: 'https://anyembed.xyz' }
+    { name: 'Server 1', url: 'https://hexa.su/watch' },
+    { name: 'Server 2', url: 'https://player.vidzee.wtf/embed' },
+    { name: 'Server 3', url: 'https://vidstorm.to' },
+    { name: 'Server 4', url: 'https://vidvault.to' },
+    { name: 'Server 5', url: 'https://vidrock.to' },
+    { name: 'Server 6', url: 'https://vidnest.fun' },
+    { name: 'Server 7', url: 'https://vidy.st' },
+    { name: 'Server 8', url: 'https://vidlink.pro' },
+    { name: 'Server 9', url: 'https://vidsrc.sh' },
+    { name: 'Server 10', url: 'https://vidup.to' },
+    { name: 'Server 11', url: 'https://anyembed.xyz' }
 ];
 
 
